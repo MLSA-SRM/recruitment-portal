@@ -1,203 +1,136 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { createSupabaseClient } from '@/lib/supabase-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { signup } from '@/lib/auth-actions'
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
-import { MLSALogo } from '@/components/ui/mlsa-logo'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
-export default function SignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+export default function SignUpPage() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const router = useRouter()
+      const supabase = createSupabaseClient()
 
-  const handleSubmit = async (formData: FormData) => {
-    if (password !== confirmPassword) {
-      alert('Passwords do not match!')
-      return
-    }
+  async function handleSignUp(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('')
 
-    setIsLoading(true)
     try {
-      await signup(formData)
-    } catch (error) {
-      console.error('Signup error:', error)
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+
+      if (error) {
+        setMessage(error.message)
+      } else {
+        // After successful signup, automatically sign in the user
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
+
+        if (signInError) {
+          setMessage('Account created but sign-in failed. Please try signing in manually.')
+        } else {
+          router.push('/profile/setup')
+          router.refresh()
+        }
+      }
+    } catch {
+      setMessage('An unexpected error occurred')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen animated-bg flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        <Card className="glass-card border-border/80 shadow-2xl">
-          <CardHeader className="text-center pb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="mx-auto mb-6"
-            >
-              <MLSALogo size="xl" animate={true} />
-            </motion.div>
-            <CardTitle className="text-3xl font-bold text-brand-secondary mb-2">
-              Join MSA SRM
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
-              Create your task submission account with your SRM email
-            </CardDescription>
-          </CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Image
+            src="/logo.svg"
+            alt="MSASRM"
+            width={64}
+            height={64}
+            className="h-16 w-16 mx-auto mb-4"
+          />
+          <h1 className="text-2xl font-bold text-gray-900">Microsoft Student Ambassadors SRM</h1>
+        </div>
+
+        {/* Form Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Join MSASRM
+            </h2>
+            <p className="text-sm text-gray-500">
+              Create your account to get started
+            </p>
+          </div>
           
-          <form action={handleSubmit}>
-            <CardContent className="space-y-6 px-8">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-3"
-              >
-                <Label htmlFor="email" className="text-foreground font-medium text-sm">
-                  SRM Email
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="xxxx@srmist.edu.in"
-                    className="pl-12 pr-4 py-3 bg-card/60 border-2 border-border/80 focus:border-secondary focus:bg-card/80 transition-all duration-200 rounded-lg text-base"
-                    required
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Must be a valid SRM email address
-                </p>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="space-y-3"
-              >
-                <Label htmlFor="password" className="text-foreground font-medium text-sm">
-                  Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Create a strong password (min. 6 characters)"
-                    className="pl-12 pr-12 py-3 bg-card/60 border-2 border-border/80 focus:border-secondary focus:bg-card/80 transition-all duration-200 rounded-lg text-base"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
-                className="space-y-3"
-              >
-                <Label htmlFor="confirmPassword" className="text-foreground font-medium text-sm">
-                  Confirm Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="Confirm your password"
-                    className="pl-12 pr-12 py-3 bg-card/60 border-2 border-border/80 focus:border-secondary focus:bg-card/80 transition-all duration-200 rounded-lg text-base"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-                {password && confirmPassword && password !== confirmPassword && (
-                  <p className="text-sm text-destructive font-medium">
-                    Passwords do not match
-                  </p>
-                )}
-              </motion.div>
-            </CardContent>
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-12 text-base"
+            />
             
-            <CardFooter className="flex flex-col space-y-6 px-8 pt-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="w-full"
-              >
-                <Button
-                  type="submit"
-                  className="w-full btn-secondary py-3 text-base font-semibold"
-                  disabled={isLoading || (!!password && !!confirmPassword && password !== confirmPassword)}
-                >
-                  {isLoading ? 'Creating Account...' : 'Create Account'}
-                </Button>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="text-center text-base"
-              >
-                <span className="text-muted-foreground">Already have an account? </span>
-                <Link
-                  href="/auth/login"
-                  className="text-brand-primary hover:text-primary hover:underline font-semibold transition-colors"
-                >
-                  Sign in
-                </Link>
-              </motion.div>
-            </CardFooter>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-12 text-base"
+            />
+
+            {message && (
+              <div className="text-sm text-center py-2">
+                <span className={message.includes('Check your email') ? 'text-green-600' : 'text-red-600'}>
+                  {message}
+                </span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              disabled={loading}
+            >
+              {loading ? 'Creating account...' : 'Create account'}
+            </Button>
           </form>
-        </Card>
-      </motion.div>
+
+          <div className="mt-6 text-center">
+            <Link 
+              href="/auth/signin"
+              className="text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-md transition-colors"
+            >
+              Already have an account? Sign in
+            </Link>
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+            ← Back to home
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

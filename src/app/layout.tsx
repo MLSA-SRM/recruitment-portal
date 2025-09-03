@@ -1,71 +1,33 @@
-import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { Navigation } from '@/components/navigation'
+import { Toaster } from 'sonner'
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://recruitment.mlsasrm.in'),
-  title: "MSA SRM Task Submission Portal",
-  description: "Official task submission platform for Microsoft Student Ambassadors SRM",
-  keywords: "MSA, Microsoft Student Ambassador, SRM, Task Submission, Technology, Programming",
-  authors: [{ name: "MSA SRM Team" }],
-  icons: {
-    icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/logo.svg', type: 'image/svg+xml', sizes: '32x32' },
-    ],
-    apple: [
-      { url: '/logo.svg', type: 'image/svg+xml', sizes: '180x180' },
-    ],
-    shortcut: '/favicon.svg',
-  },
-  manifest: '/manifest.json',
-
-  openGraph: {
-    title: "MSA SRM Task Submission Portal",
-    description: "Submit tasks and showcase your skills to Microsoft Student Ambassadors SRM",
-    type: "website",
-    images: [
-      {
-        url: '/logo.svg',
-        width: 1200,
-        height: 630,
-        alt: 'Microsoft Student Ambassador SRM Logo',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'MSA SRM Task Submission Portal',
-    description: 'Submit tasks and showcase your skills to Microsoft Student Ambassadors SRM',
-    images: ['/logo.svg'],
-  },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#00FFFF',
-  colorScheme: 'dark',
+  title: 'MSASRM - Microsoft Student Ambassadors SRM',
+  description: 'Microsoft Student Ambassadors SRM University - Join our elite team of tech enthusiasts and innovators.',
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={inter.className}>
+        <Navigation />
         {children}
-        <Toaster />
+        <Toaster 
+          position="top-right"
+          richColors
+          closeButton
+          duration={4000}
+        />
       </body>
     </html>
-  );
+  )
 }

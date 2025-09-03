@@ -1,23 +1,29 @@
-import { redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { DashboardContent } from '@/components/dashboard/dashboard-content'
-
-// Disable caching for this page to ensure fresh data
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import { createSupabaseServer } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
+import React from 'react'
+import { Edit, Clock, AlertCircle } from 'lucide-react'
+import AiReviewRefresher from '@/components/ai-review-refresher'
+import { SubmissionWithTask } from '@/lib/types'
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServer()
+  const { data: { user } } = await supabase.auth.getUser()
   
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   if (!user) {
-    redirect('/auth/login')
+    return (
+      <div className="p-6 text-center">
+        <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
+        <p className="text-gray-600 mb-4">You need to be signed in to view your dashboard.</p>
+        <Link href="/auth/signin">
+          <Button>Sign In</Button>
+        </Link>
+      </div>
+    )
   }
 
-  // Check if user has completed profile
+  // Check if user has a profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -25,142 +31,144 @@ export default async function DashboardPage() {
     .single()
 
   if (!profile) {
-    redirect('/auth/profile-setup')
+    return (
+      <div className="p-6 text-center">
+        <h1 className="text-2xl font-bold mb-4">Profile Setup Required</h1>
+        <p className="text-gray-600 mb-4">Please complete your profile setup before accessing the dashboard.</p>
+        <Link href="/profile/setup">
+          <Button>Complete Profile</Button>
+        </Link>
+      </div>
+    )
   }
 
-  // Try to fetch user's submissions with RLS, fallback to service client if needed
-  let submissions = null
-  let submissionsError = null
-  
-  try {
-    const result = await supabase
-      .from('submissions')
-      .select(`
-        *,
-        problem_statements (
-          id,
-          title,
-          description,
-          domain,
-          sub_domain
-        ),
-        feedback (
-          id,
-          feedback_text,
-          feedback_type,
-          is_shared
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    
-    submissions = result.data
-    submissionsError = result.error
-    
-    // If RLS blocks access, use service client as fallback
-    if (submissionsError?.code === '42501') {
-      console.log('RLS still blocking submissions, using service client fallback')
-      const serviceClient = createServiceClient()
-      const fallbackResult = await serviceClient
-        .from('submissions')
-        .select(`
-          *,
-          problem_statements (
-            id,
-            title,
-            description,
-            domain,
-            sub_domain
-          ),
-          feedback (
-            id,
-            feedback_text,
-            feedback_type,
-            is_shared
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      
-      submissions = fallbackResult.data
-      submissionsError = fallbackResult.error
-      console.log('Service client fallback result:', { 
-        submissionsCount: submissions?.length, 
-        error: submissionsError 
-      })
-    }
-  } catch (error) {
-    console.error('Error fetching submissions:', error)
-    submissionsError = error
-  }
+  const { data: submissions } = await supabase
+    .from('submissions')
+    .select(`
+      id,
+      submission_url,
+      status,
+      ai_score,
+      ai_review,
+      created_at,
+      tasks(title, domain, subdomain, deadline)
+    `)
+    .eq('applicant_id', user.id)
+    .order('created_at', { ascending: false })
 
-  // Try to fetch problem statements with RLS, fallback to service client if needed
-  let problemStatements = null
-  let problemStatementsError = null
-  
-  try {
-    const result = await supabase
-      .from('problem_statements')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-    
-    problemStatements = result.data
-    problemStatementsError = result.error
-    
-    // If RLS blocks access, use service client as fallback
-    if (problemStatementsError?.code === '42501') {
-      console.log('RLS still blocking problem statements, using service client fallback')
-      const serviceClient = createServiceClient()
-      const fallbackResult = await serviceClient
-        .from('problem_statements')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-      
-      problemStatements = fallbackResult.data
-      problemStatementsError = fallbackResult.error
-      console.log('Service client fallback result:', { 
-        problemStatementsCount: problemStatements?.length, 
-        error: problemStatementsError 
-      })
-    }
-  } catch (error) {
-    console.error('Error fetching problem statements:', error)
-    problemStatementsError = error
-  }
+  const typedSubmissions = submissions as SubmissionWithTask[]
 
-  // Handle permission errors gracefully
-  if (submissionsError) {
-    console.error('Submissions error:', submissionsError)
-  }
-  
-  if (problemStatementsError) {
-    console.error('Problem statements error:', problemStatementsError)
-  }
+  const now = new Date()
 
-  // Debug logging for user dashboard
-  console.log('User Dashboard Debug:')
-  console.log('User ID:', user.id)
-  console.log('Profile:', profile)
-  console.log('Submissions:', submissions, submissionsError)
-  console.log('Problem Statements:', problemStatements, problemStatementsError)
-
-  // Handle critical errors
-  if (submissionsError && typeof submissionsError === 'object' && submissionsError !== null && 'code' in submissionsError && (submissionsError as { code: string }).code === '42501') {
-    console.error('Permission denied for submissions. This might be an RLS policy issue.')
-  }
-  
-  if (problemStatementsError && typeof problemStatementsError === 'object' && problemStatementsError !== null && 'code' in problemStatementsError && (problemStatementsError as { code: string }).code === '42501') {
-    console.error('Permission denied for problem statements. This might be an RLS policy issue.')
-  }
+  // Determine if any submission is in evaluation
+  const isAnyEvaluating = (typedSubmissions || []).some((submission) => submission.ai_score === null || String(submission.ai_review || '').toLowerCase().includes('in progress'))
 
   return (
-    <DashboardContent
-      user={user}
-      profile={profile}
-      submissions={submissions || []}
-      problemStatements={problemStatements || []}
-    />
+    <div className="max-w-5xl mx-auto p-6">
+      {/* While any submission is evaluating, periodically refresh the page to fetch new AI results */}
+      {isAnyEvaluating ? <AiReviewRefresher /> : null}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
+        <p className="text-gray-600">Track your submissions and view AI feedback</p>
+      </div>
+
+      {typedSubmissions && typedSubmissions.length > 0 ? (
+        <div className="space-y-6">
+          {typedSubmissions.map((submission) => {
+            // Check if deadline has passed
+            const task = submission.tasks?.[0]
+            const deadline = task?.deadline ? new Date(task.deadline) : null
+            const deadlinePassed = deadline ? deadline < now : false
+            const canEdit = submission.status === 'pending' && !deadlinePassed
+            
+            return (
+              <div key={submission.id} className="bg-white p-6 rounded-lg shadow border">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold mb-2">
+                      {task?.title}
+                    </h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                      <span><strong>Domain:</strong> {task?.domain}</span>
+                      {task?.subdomain && (
+                        <span><strong>Subdomain:</strong>
+                          {task?.subdomain}
+                        </span>
+                      )}
+                      <span><strong>Submitted:</strong> {new Date(submission.created_at!).toLocaleDateString()}</span>
+                    </div>
+                    
+                    {/* Deadline Information */}
+                    {task?.deadline && (
+                      <div className="flex items-center gap-2 text-sm mb-3">
+                        <Clock className="h-4 w-4 text-gray-500" />
+                        <span className="text-gray-600">
+                          <strong>Deadline:</strong> {new Date(task.deadline).toLocaleDateString()}
+                        </span>
+                        {deadlinePassed ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Deadline Passed
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-4 mb-3"></div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge 
+                      variant={
+                        submission.status === 'shortlisted' ? 'default' : 
+                        submission.status === 'rejected' ? 'destructive' : 
+                        'secondary'
+                      }
+                    >
+                      {submission.status}
+                    </Badge>
+                    
+                    {/* Edit Button */}
+                    {canEdit ? (
+                      <Link href={`/dashboard/edit/${submission.id}`}>
+                        <Button size="sm" variant="outline" className="flex items-center gap-2">
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Button>
+                      </Link>
+                    ) : deadlinePassed ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Deadline passed</span>
+                      </div>
+                    ) : submission.status !== 'pending' ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>Already reviewed</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                
+                {/* AI review is hidden for applicants */}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">📝</div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
+          <p className="text-gray-600 mb-4">
+            You haven&apos;t submitted any applications yet. Browse available positions and submit your first application.
+          </p>
+          <Link href="/apply">
+            <Button>Browse Positions</Button>
+          </Link>
+        </div>
+      )}
+    </div>
   )
 }
