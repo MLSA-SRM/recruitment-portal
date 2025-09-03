@@ -1,0 +1,51 @@
+{
+  "name": "MLSA SRM Task Submission Portal",
+  "short_name": "MLSA SRM",
+  "description": "Official task submission platform for Microsoft Student Ambassadors SRM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#00FFFF",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg", 
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/logo.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "MLSA SRM Task Portal"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Submit Task",
+      "short_name": "Submit",
+      "description": "Submit a new task",
+      "url": "/dashboard#submissions",
+      "icons": [{ "src": "/logo.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "View Leaderboard",
+      "short_name": "Leaderboard", 
+      "description": "Check your ranking",
+      "url": "/dashboard#leaderboard",
+      "icons": [{ "src": "/logo.svg", "sizes": "96x96" }]
+    }
+  ]
+}
