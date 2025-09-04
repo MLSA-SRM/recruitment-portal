@@ -135,7 +135,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     return (
       <Button asChild className="w-full">
         <Link href={`/apply/${taskId}`}>
-          Apply Now
+          Submit Now
         </Link>
       </Button>
     )

@@ -162,7 +162,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
     return (
       <Button className="w-full" disabled>
-        Cannot Apply
+        Cannot Submit
       </Button>
     )
   }
