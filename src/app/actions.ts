@@ -213,7 +213,13 @@ async function performAIReview(opts: {
     content = submissionContent.join('\n\n')
     
     if (hasValidContent) {
-      prompt = task?.domain === 'Corporate' ? PROMPTS.corporate(content) : ((profile?.year ?? 1) <= 1 ? PROMPTS.tech_first_year(content) : PROMPTS.tech_second_year(content))
+      if (task?.domain === 'Corporate') {
+        prompt = PROMPTS.corporate(content)
+      } else {
+        const isFirstYear = (profile?.year ?? 1) <= 1
+        const taskType = task?.subdomain || 'General'
+        prompt = isFirstYear ? PROMPTS.tech_first_year(content, taskType) : PROMPTS.tech_second_year(content, taskType)
+      }
     }
   } catch (e) {
     console.error(`[AI][${context}] Content fetch failed:`, e)
@@ -498,6 +504,9 @@ export async function exportShortlistedCSV(): Promise<string> {
     ai_score: row.ai_score ?? '',
     status: row.status ?? ''
   }))
+  
+  // Use dynamic import to avoid server-side execution issues
+  const Papa = (await import('papaparse')).default
   const csv = Papa.unparse(rows)
   return csv
 }
