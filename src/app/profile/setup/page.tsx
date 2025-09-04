@@ -235,12 +235,12 @@ export default function ProfileSetupPage() {
               onChange={(subdomains) => setFormData({ ...formData, subdomains })}
               placeholder="Select subdomains from your chosen domains..."
               disabled={formData.domains.length === 0}
-              maxSelections={5}
+              maxSelections={10}
             />
             <p className="text-xs text-gray-500">
               {formData.domains.length === 0 
                 ? "Please select domains first" 
-                : "You can select up to 5 subdomains from your chosen domains"
+                : "You can select up to 10 subdomains from your chosen domains"
               }
             </p>
           </div>
