@@ -16,16 +16,18 @@ import {
   Clock, 
   TrendingUp,
   BarChart3,
-  Plus
+  Plus,
+  CheckCircle2
 } from 'lucide-react'
 
-type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string }
+type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string; minScore?: string; maxScore?: string; sort?: string }
 
 type SubmissionWithJoins = {
   id: number
   submission_url: string
   status: 'pending' | 'shortlisted' | 'rejected'
   ai_score: number | null
+  ai_recommendation: 'shortlist' | 'reject' | null
   profiles: {
     name: string | null
     ra_number: string | null
@@ -41,7 +43,7 @@ async function getSubmissions(filters: Filters): Promise<SubmissionWithJoins[]> 
   const supabase = await createSupabaseServer()
   const { data } = await supabase
     .from('submissions')
-    .select('id, submission_url, status, ai_score, profiles(name, ra_number, year), tasks(domain, subdomain)')
+    .select('id, submission_url, status, ai_score, ai_recommendation, profiles(name, ra_number, year), tasks(domain, subdomain)')
   let rows = (data || []) as unknown as SubmissionWithJoins[]
   if (filters.q) {
     const q = filters.q.toLowerCase()
@@ -54,6 +56,23 @@ async function getSubmissions(filters: Filters): Promise<SubmissionWithJoins[]> 
   if (filters.domain) rows = rows.filter((r) => (r.tasks?.domain ?? '') === filters.domain)
   if (filters.subdomain) rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
   if (filters.status) rows = rows.filter((r) => (r.status ?? '') === filters.status)
+  const min = filters.minScore ? Number(filters.minScore) : undefined
+  const max = filters.maxScore ? Number(filters.maxScore) : undefined
+  if (typeof min === 'number' && !Number.isNaN(min)) rows = rows.filter((r) => (r.ai_score ?? -1) >= min)
+  if (typeof max === 'number' && !Number.isNaN(max)) rows = rows.filter((r) => (r.ai_score ?? 1000000) <= max)
+  if (filters.sort === 'score_desc') {
+    rows = rows.sort((a, b) => {
+      const av = a.ai_score ?? -1
+      const bv = b.ai_score ?? -1
+      return bv - av
+    })
+  } else if (filters.sort === 'score_asc') {
+    rows = rows.sort((a, b) => {
+      const av = a.ai_score ?? 1000000
+      const bv = b.ai_score ?? 1000000
+      return av - bv
+    })
+  }
   return rows
 }
 
@@ -84,6 +103,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     if (resolvedSearchParams.domain && key !== 'domain') params.set('domain', resolvedSearchParams.domain)
     if (resolvedSearchParams.subdomain && key !== 'subdomain') params.set('subdomain', resolvedSearchParams.subdomain)
     if (resolvedSearchParams.status && key !== 'status') params.set('status', resolvedSearchParams.status)
+    if (resolvedSearchParams.minScore && key !== 'minScore') params.set('minScore', resolvedSearchParams.minScore)
+    if (resolvedSearchParams.maxScore && key !== 'maxScore') params.set('maxScore', resolvedSearchParams.maxScore)
+    if (resolvedSearchParams.sort && key !== 'sort') params.set('sort', resolvedSearchParams.sort)
     if (value) params.set(key, value)
     return `/admin/dashboard?${params.toString()}`
   }
@@ -277,6 +299,29 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             <DropdownMenuItem asChild><Link href={hrefWith('status', 'rejected')}>Rejected</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">AI Score {resolvedSearchParams.minScore || resolvedSearchParams.maxScore ? `: ${resolvedSearchParams.minScore ?? 0}-${resolvedSearchParams.maxScore ?? '1000'}` : ''}</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Filter by AI Score</DropdownMenuLabel>
+            <DropdownMenuItem asChild><Link href={hrefWith('minScore')}>Any</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`${hrefWith('minScore', '0')}&maxScore=400`}>0-400</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`${hrefWith('minScore', '401')}&maxScore=799`}>401-799</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={hrefWith('minScore', '800')}>800+</Link></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">Sort {resolvedSearchParams.sort ? `: ${resolvedSearchParams.sort === 'score_desc' ? 'Score High→Low' : 'Score Low→High'}` : ''}</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+            <DropdownMenuItem asChild><Link href={hrefWith('sort')}>Default</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={hrefWith('sort', 'score_desc')}>AI Score High→Low</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={hrefWith('sort', 'score_asc')}>AI Score Low→High</Link></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Link href="/admin/export"><Button type="button">Export Shortlisted CSV</Button></Link>
       </div>
       <div className="overflow-x-auto">
@@ -288,7 +333,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
               <th className="p-2">Year</th>
               <th className="p-2">Domain</th>
               <th className="p-2">Subdomain</th>
-              <th className="p-2">Submission</th>
               <th className="p-2">AI Score</th>
               <th className="p-2">Status</th>
               <th className="p-2">Actions</th>
@@ -302,11 +346,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                 <td className="p-2">{s.profiles?.year}</td>
                 <td className="p-2">{s.tasks?.domain}</td>
                 <td className="p-2">{s.tasks?.subdomain}</td>
-                <td className="p-2">
-                  <Button asChild size="sm" variant="outline">
-                    <a href={s.submission_url} target="_blank" rel="noreferrer">Open</a>
-                  </Button>
-                </td>
                 <td className="p-2">{s.ai_score ?? '-'}</td>
                 <td className="p-2">
                   <Badge variant={s.status === 'shortlisted' ? 'default' : s.status === 'rejected' ? 'destructive' : 'secondary'}>
@@ -319,10 +358,33 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                       <Button size="sm" variant="outline">Review</Button>
                     </Link>
                     <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); revalidatePath('/admin/dashboard') }}>
-                      <Button type="submit" size="sm" className={`${typeof s.ai_score === 'number' && s.ai_score >= 800 ? 'ring-2 ring-green-400 animate-pulse' : ''}`}>Accept</Button>
+                      <Button 
+                        type="submit" 
+                        size="sm" 
+                        className={`relative ${
+                          s.ai_recommendation === 'shortlist'
+                            ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 animate-pulse shadow-lg' 
+                            : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Accept
+                      </Button>
                     </form>
                     <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); revalidatePath('/admin/dashboard') }}>
-                      <Button type="submit" variant="destructive" size="sm" className={`${typeof s.ai_score === 'number' && s.ai_score <= 400 ? 'ring-2 ring-red-400 animate-pulse' : ''}`}>Reject</Button>
+                      <Button 
+                        type="submit" 
+                        variant="destructive" 
+                        size="sm" 
+                        className={`relative ${
+                          s.ai_recommendation === 'reject'
+                            ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 animate-pulse shadow-lg' 
+                            : 'bg-red-600 hover:bg-red-700'
+                        }`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
                     </form>
                   </div>
                 </td>

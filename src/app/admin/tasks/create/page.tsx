@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, Target, FileText, AlertCircle, CheckCircle, ClipboardList } from 'lucide-react'
+import { Calendar, Clock, Target, FileText, AlertCircle, CheckCircle, ClipboardList, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import Link from 'next/link'
 import { createTask } from '@/app/actions'
 import { DOMAIN_SUBDOMAINS, type Domain } from '@/lib/constants'
@@ -13,6 +13,8 @@ import { useState, useRef, useEffect } from 'react'
 import SubmissionFieldsManager from '@/components/submission-fields-manager'
 import { type SubmissionField } from '@/lib/types'
 import { toast } from 'sonner'
+import { createSupabaseClient } from '@/lib/supabase-client'
+import NextImage from 'next/image'
 
 export default function CreateTaskPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,6 +25,7 @@ export default function CreateTaskPage() {
     subdomain: '',
     target_year: '',
     deadline: '',
+    estimated_duration: '',
     requirements: '',
     deliverables: ''
   })
@@ -32,6 +35,9 @@ export default function CreateTaskPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const hasSubmitted = useRef(false)
   const submissionId = useRef(Date.now().toString() + Math.random().toString(36).substr(2, 9))
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [showZoom, setShowZoom] = useState(false)
 
   // Debug: Log when component mounts
   useEffect(() => {
@@ -41,11 +47,86 @@ export default function CreateTaskPage() {
     }
   }, [])
 
+  const calculateEstimatedDuration = (deadline: string) => {
+    if (!deadline) return ''
+    
+    const today = new Date()
+    const deadlineDate = new Date(deadline)
+    const diffTime = deadlineDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays <= 0) return 'Overdue'
+    if (diffDays === 1) return '1 day'
+    if (diffDays < 7) return `${diffDays} days`
+    if (diffDays < 14) return '1 week'
+    if (diffDays < 21) return '1-2 weeks'
+    if (diffDays < 30) return '2-3 weeks'
+    if (diffDays < 60) return '1 month'
+    if (diffDays < 90) return '1-2 months'
+    return '2+ months'
+  }
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Auto-calculate estimated duration when deadline changes
+      if (field === 'deadline') {
+        newData.estimated_duration = calculateEstimatedDuration(value)
+      }
+      
+      return newData
+    })
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  // Compress image using canvas to WebP with max width/height and quality
+  const compressImage = async (file: File, maxSize = 1400, quality = 0.8): Promise<Blob> => {
+    const bitmap = await createImageBitmap(file)
+    const { width, height } = bitmap
+    const scale = Math.min(1, maxSize / Math.max(width, height))
+    const targetW = Math.round(width * scale)
+    const targetH = Math.round(height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = targetW
+    canvas.height = targetH
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bitmap, 0, 0, targetW, targetH)
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(b => resolve(b), 'image/webp', quality))
+    if (!blob) throw new Error('Failed to compress image')
+    return blob
+  }
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file')
+      return
+    }
+    setImageUploading(true)
+    try {
+      const supabase = createSupabaseClient()
+      const compressed = await compressImage(file)
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}.webp`
+      const path = `tasks/tmp/${submissionId.current}/${fileName}`
+      const { error } = await supabase.storage.from('task-images').upload(path, compressed, {
+        upsert: true,
+        contentType: 'image/webp'
+      })
+      if (error) throw error
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/task-images/${path}`
+      setImageUrl(url)
+      toast.success('Image uploaded')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to upload image', { description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setImageUploading(false)
     }
   }
 
@@ -117,6 +198,7 @@ export default function CreateTaskPage() {
         formDataObj.append('submissionFields', JSON.stringify(submissionFields))
       }
       
+      if (imageUrl) formDataObj.append('image_url', imageUrl)
       const result = await createTask(formDataObj)
       console.log('Task created successfully:', result)
       
@@ -216,8 +298,35 @@ export default function CreateTaskPage() {
                 </p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" /> Task Image (optional)
+              </label>
+              {imageUrl ? (
+                <div className="relative">
+                  <button type="button" className="absolute top-2 right-2 bg-black/60 text-white rounded p-1" onClick={() => setShowZoom(true)}>
+                    <Maximize2 className="h-4 w-4" />
+                  </button>
+                  <NextImage src={imageUrl} alt="Task image" width={600} height={338} className="rounded border" />
+                </div>
+              ) : null}
+              <Input type="file" accept="image/*" onChange={handleImageChange} disabled={imageUploading} />
+              {imageUploading && <p className="text-xs text-gray-500">Uploading...</p>}
+            </div>
           </CardContent>
         </Card>
+
+        {showZoom && imageUrl && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="relative max-w-5xl w-full px-4">
+              <button className="absolute -top-10 right-0 text-white" onClick={() => setShowZoom(false)}>
+                <X className="h-6 w-6" />
+              </button>
+              <NextImage src={imageUrl} alt="Task image large" width={1600} height={900} className="w-full h-auto rounded" />
+            </div>
+          </div>
+        )}
 
         {/* Task Details Card */}
         <Card>
@@ -341,14 +450,19 @@ export default function CreateTaskPage() {
                 )}
               </div>
 
-                             <div className="space-y-2">
-                 <label className="text-sm font-medium text-gray-700">Estimated Duration</label>
-                 <Input 
-                   placeholder="e.g., 2-3 weeks"
-                   value={formData.requirements}
-                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('requirements', e.target.value)}
-                 />
-               </div>
+                                           <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Estimated Duration</label>
+                <Input 
+                  placeholder="Auto-calculated from deadline"
+                  value={formData.estimated_duration}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('estimated_duration', e.target.value)}
+                  readOnly={!!formData.deadline}
+                  className={formData.deadline ? 'bg-gray-50' : ''}
+                />
+                {formData.deadline && (
+                  <p className="text-xs text-gray-500">Auto-calculated from deadline. You can edit manually if needed.</p>
+                )}
+              </div>
             </div>
 
                          <div className="space-y-2">
@@ -453,7 +567,7 @@ export default function CreateTaskPage() {
           <div className="flex gap-4">
             <Button 
               type="submit" 
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 text-lg"
               disabled={isSubmitting || hasSubmitted.current}
               onClick={(e) => {
                 if (hasSubmitted.current || isSubmitting) {
@@ -467,7 +581,7 @@ export default function CreateTaskPage() {
               {isSubmitting ? 'Creating Task...' : hasSubmitted.current ? 'Task Created!' : 'Create Task'}
             </Button>
             <Link href="/admin/tasks">
-              <Button type="button" variant="outline" className="px-8 py-3 text-lg">
+              <Button type="button" variant="outline" className="text-lg">
                 Cancel
               </Button>
             </Link>

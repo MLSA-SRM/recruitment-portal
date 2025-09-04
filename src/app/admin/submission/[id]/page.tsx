@@ -9,14 +9,115 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award } from 'lucide-react'
 
+type SubmissionFieldInfo = {
+  value: unknown
+  type: string
+  label: string
+}
+
+type AdminSubmissionView = {
+  id: number
+  submission_url?: string
+  status: string
+  ai_score?: number
+  ai_review?: string
+  ai_recommendation?: 'shortlist' | 'reject' | null
+  submission_data: Record<string, unknown>
+  profiles: {
+    name: string
+    ra_number: string
+    phone_number: string
+    department: string
+    branch: string
+    year: number
+  } | null
+  tasks: {
+    title: string
+    domain: string
+    subdomain?: string
+    target_year?: number
+    deadline?: string
+  } | null
+}
+
 export default async function SubmissionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createSupabaseServer()
   const { data: submission } = await supabase
     .from('submissions')
-    .select('id, submission_url, status, ai_score, ai_review, profiles(*), tasks(*)')
+    .select(`
+      id,
+      submission_url,
+      status,
+      ai_score,
+      ai_review,
+      ai_recommendation,
+      submission_data,
+      profiles:profiles!submissions_applicant_id_fkey(name, ra_number, phone_number, department, branch, year),
+      tasks:tasks!submissions_task_id_fkey(title, domain, subdomain, target_year, deadline)
+    `)
     .eq('id', Number(id))
     .single()
+
+  type RawSubmission = {
+    id: number
+    submission_url?: string
+    status: string
+    ai_score?: number
+    ai_review?: string
+    ai_recommendation?: 'shortlist' | 'reject' | null
+    submission_data?: Record<string, unknown>
+    profiles?:
+      | {
+          name: string
+          ra_number: string
+          phone_number: string
+          department: string
+          branch: string
+          year: number
+        }
+      | Array<{
+          name: string
+          ra_number: string
+          phone_number: string
+          department: string
+          branch: string
+          year: number
+        }>
+      | null
+    tasks?:
+      | {
+          title: string
+          domain: string
+          subdomain?: string
+          target_year?: number
+          deadline?: string
+        }
+      | Array<{
+          title: string
+          domain: string
+          subdomain?: string
+          target_year?: number
+          deadline?: string
+        }>
+      | null
+  }
+
+  const s = submission as unknown as RawSubmission | null
+
+  const view: AdminSubmissionView | null = s
+    ? {
+        id: s.id,
+        submission_url: s.submission_url,
+        status: s.status,
+        ai_score: s.ai_score,
+        ai_review: s.ai_review,
+        ai_recommendation: s.ai_recommendation ?? null,
+        submission_data: s.submission_data || {},
+        profiles: Array.isArray(s.profiles) ? s.profiles[0] ?? null : s.profiles ?? null,
+        tasks: Array.isArray(s.tasks) ? s.tasks[0] ?? null : s.tasks ?? null
+      }
+    : null
 
   return (
     <AdminLayout>
@@ -33,18 +134,37 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
             <h1 className="text-2xl font-bold">Submission Details</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant={submission?.status === 'shortlisted' ? 'default' : submission?.status === 'rejected' ? 'destructive' : 'secondary'}>
-              {submission?.status}
+            <Badge variant={view?.status === 'shortlisted' ? 'default' : view?.status === 'rejected' ? 'destructive' : 'secondary'}>
+              {view?.status}
             </Badge>
             <div className="flex items-center gap-2">
               <form action={async () => { 'use server'; await updateSubmissionStatus(Number(id), 'shortlisted') }}>
-                <Button type="submit" size="sm" className={`flex items-center gap-2 ${typeof submission?.ai_score === 'number' && submission.ai_score >= 800 ? 'ring-2 ring-green-400 animate-pulse' : ''}`}>
-                  <CheckCircle2 className="h-4 w-4" /> Accept
+                <Button 
+                  type="submit" 
+                  size="sm" 
+                  className={`relative flex items-center gap-2 ${
+                    view?.ai_recommendation === 'shortlist'
+                      ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Accept
                 </Button>
               </form>
               <form action={async () => { 'use server'; await updateSubmissionStatus(Number(id), 'rejected') }}>
-                <Button type="submit" size="sm" variant="destructive" className={`flex items-center gap-2 ${typeof submission?.ai_score === 'number' && submission.ai_score <= 400 ? 'ring-2 ring-red-400 animate-pulse' : ''}`}>
-                  <XCircle className="h-4 w-4" /> Reject
+                <Button 
+                  type="submit" 
+                  size="sm" 
+                  variant="destructive" 
+                  className={`relative flex items-center gap-2 ${
+                    view?.ai_recommendation === 'reject'
+                      ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  <XCircle className="h-4 w-4" />
+                  Reject
                 </Button>
               </form>
             </div>
@@ -60,16 +180,11 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
               </CardHeader>
               <CardContent>
                 <div className="text-sm space-y-2">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Name:</span> {String((submission as any)?.profiles?.name || 'N/A')}</div>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">RA Number:</span> {String((submission as any)?.profiles?.ra_number || 'N/A')}</div>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Year:</span> {String((submission as any)?.profiles?.year || 'N/A')}</div>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Department:</span> {String((submission as any)?.profiles?.department || 'N/A')}</div>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Branch:</span> {String((submission as any)?.profiles?.branch || 'N/A')}</div>
+                  <div><span className="font-medium">Name:</span> {String(view?.profiles?.name || 'N/A')}</div>
+                  <div><span className="font-medium">RA Number:</span> {String(view?.profiles?.ra_number || 'N/A')}</div>
+                  <div><span className="font-medium">Year:</span> {String(view?.profiles?.year || 'N/A')}</div>
+                  <div><span className="font-medium">Department:</span> {String(view?.profiles?.department || 'N/A')}</div>
+                  <div><span className="font-medium">Branch:</span> {String(view?.profiles?.branch || 'N/A')}</div>
                 </div>
               </CardContent>
             </Card>
@@ -80,15 +195,13 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
               </CardHeader>
               <CardContent>
                 <div className="text-sm space-y-2">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Domain:</span> {String((submission as any)?.tasks?.domain || 'N/A')}</div>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <div><span className="font-medium">Subdomain:</span> {String((submission as any)?.tasks?.subdomain || 'N/A')}</div>
+                  <div><span className="font-medium">Domain:</span> {String(view?.tasks?.domain || 'N/A')}</div>
+                  <div><span className="font-medium">Subdomain:</span> {String(view?.tasks?.subdomain || 'N/A')}</div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Submission:</span>
-                    {submission?.submission_url ? (
+                    {view?.submission_url ? (
                       <Button asChild size="sm" variant="outline" className="h-7 px-2">
-                        <a href={submission.submission_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1">
+                        <a href={view.submission_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1">
                           Open <ExternalLink className="h-3 w-3" />
                         </a>
                       </Button>
@@ -99,6 +212,80 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
                 </div>
               </CardContent>
             </Card>
+
+            {/* Submission Fields */}
+            {view?.submission_data && Object.keys(view.submission_data).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4" /> Submission Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm space-y-3">
+                    {Object.entries(view.submission_data).map(([fieldName, fieldInfo]) => (
+                      <div key={fieldName} className="border-l-2 border-blue-200 pl-3">
+                        <div className="font-medium text-gray-900 mb-1">{(fieldInfo as SubmissionFieldInfo).label || fieldName}</div>
+                        <div className="text-gray-700">
+                          {(fieldInfo as SubmissionFieldInfo).type === 'file' ? (
+                            <div className="space-y-1">
+                              {/* eslint-disable @typescript-eslint/no-explicit-any */}
+                              <div className="text-xs text-gray-500">File: {((fieldInfo as SubmissionFieldInfo).value as any)?.name || 'Unknown'}</div>
+                              {((fieldInfo as SubmissionFieldInfo).value as any)?.size && (
+                                <div className="text-xs text-gray-500">Size: {(((fieldInfo as SubmissionFieldInfo).value as any).size / 1024).toFixed(1)} KB</div>
+                              )}
+                              {((fieldInfo as SubmissionFieldInfo).value as any)?.type && (
+                                <div className="text-xs text-gray-500">Type: {((fieldInfo as SubmissionFieldInfo).value as any).type}</div>
+                              )}
+                              {/* eslint-enable @typescript-eslint/no-explicit-any */}
+                            </div>
+                          ) : (fieldInfo as SubmissionFieldInfo).type === 'url' ? (
+                            <Button asChild size="sm" variant="outline" className="h-8 px-3">
+                              <a
+                                href={(fieldInfo as SubmissionFieldInfo).value as string}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Open Link
+                              </a>
+                            </Button>
+                          ) : (fieldInfo as SubmissionFieldInfo).type === 'email' ? (
+                            <Button asChild size="sm" variant="outline" className="h-8 px-3">
+                                                            <a
+                                href={`mailto:${String((fieldInfo as SubmissionFieldInfo).value)}`}
+                                className="inline-flex items-center gap-2"
+                              >
+                                <span>{String((fieldInfo as SubmissionFieldInfo).value)}</span>
+                              </a>
+                            </Button>
+                          ) : (fieldInfo as SubmissionFieldInfo).type === 'checkbox' ? (
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                Boolean((fieldInfo as SubmissionFieldInfo).value) ? 'bg-green-500 border-green-500' : 'bg-gray-200 border-gray-300'
+                              }`}>
+                                {Boolean((fieldInfo as SubmissionFieldInfo).value) && <CheckCircle2 className="h-3 w-3 text-white" />}
+                              </div>
+                              <span className={Boolean((fieldInfo as SubmissionFieldInfo).value) ? 'text-green-700' : 'text-gray-500'}>
+                                {Boolean((fieldInfo as SubmissionFieldInfo).value) ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          ) : (fieldInfo as SubmissionFieldInfo).type === 'number' ? (
+                            <span className="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
+                              {String((fieldInfo as SubmissionFieldInfo).value)}
+                            </span>
+                          ) : (
+                            <div className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-sm">
+                              {String((fieldInfo as SubmissionFieldInfo).value)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">Type: {(fieldInfo as SubmissionFieldInfo).type}</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right column */}
@@ -114,7 +301,6 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
               </CardHeader>
               <CardContent>
                 <div className="prose max-w-none">
-                  {/* Removed neutral suggestion; glow on buttons indicates AI suggestion */}
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{

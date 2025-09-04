@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { notFound, useRouter } from 'next/navigation'
+import ImageLightbox from '@/components/image-lightbox'
 import { useEffect, useState, use } from 'react'
 
 export default function TaskViewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,9 +35,11 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
     deliverables: string | null
     created_at: string | null
     updated_at: string | null
+    image_url?: string | null
   } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showZoom, setShowZoom] = useState(false)
 
       useEffect(() => {
     const loadTask = async () => {
@@ -170,6 +173,18 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="grid gap-6">
+        {/* Image */}
+        {task.image_url && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Image</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={task.image_url} alt="Task image" className="rounded border cursor-zoom-in" onClick={() => setShowZoom(true)} />
+            </CardContent>
+          </Card>
+        )}
         {/* Basic Information */}
         <Card>
           <CardHeader>
@@ -302,6 +317,10 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
           </CardContent>
         </Card>
       </div>
+
+      {showZoom && task.image_url && (
+        <ImageLightbox src={task.image_url} alt="Task image" onClose={() => setShowZoom(false)} />
+      )}
     </div>
   )
 }

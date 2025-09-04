@@ -11,6 +11,7 @@ import { handleSubmission, canSubmitToTask } from '@/app/actions'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { use } from 'react'
+import ImageLightbox from '@/components/image-lightbox'
 
 interface Task {
   id: number
@@ -20,6 +21,7 @@ interface Task {
   subdomain: string
   target_year: number
   deadline: string
+  image_url?: string
 }
 
 interface SubmissionField {
@@ -48,6 +50,7 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showZoom, setShowZoom] = useState(false)
 
   useEffect(() => {
     const fetchTaskAndStatus = async () => {
@@ -133,6 +136,17 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
     <div className="mx-auto max-w-2xl py-10 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{task.title}</h1>
+        {task.image_url && (
+          <div className="mt-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={task.image_url}
+              alt="Task image thumbnail"
+              className="w-full h-48 object-cover rounded border cursor-zoom-in"
+              onClick={() => setShowZoom(true)}
+            />
+          </div>
+        )}
         <p className="text-muted-foreground mt-2">{task.description}</p>
         <div className="text-sm text-muted-foreground mt-1">
           {task.domain}{task.subdomain ? ` • ${task.subdomain}` : ''} • Target Year: {task.target_year}
@@ -377,6 +391,9 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
           ← Back to Available Tasks
         </Link>
       </div>
+      {showZoom && task.image_url && (
+        <ImageLightbox src={task.image_url} alt="Task image" onClose={() => setShowZoom(false)} />
+      )}
     </div>
   )
 }

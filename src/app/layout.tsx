@@ -7,7 +7,7 @@ import { Toaster } from 'sonner'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'MSASRM - Microsoft Student Ambassadors SRM',
+  title: 'Microsoft Student Ambassadors SRM',
   description: 'Microsoft Student Ambassadors SRM University - Join our elite team of tech enthusiasts and innovators.',
 }
 

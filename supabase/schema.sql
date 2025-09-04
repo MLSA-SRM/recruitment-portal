@@ -37,7 +37,7 @@ create table if not exists public.submissions (
   submitted_at timestamptz default now()
 );
 
--- Enable RLS and add basic policies (adjust as needed)
+-- Enable RLS and add basic policies (adjusted with admin checks)
 alter table public.profiles enable row level security;
 alter table public.tasks enable row level security;
 alter table public.submissions enable row level security;
@@ -45,6 +45,7 @@ alter table public.submissions enable row level security;
 -- Drop policies if they already exist to avoid duplication errors
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
 drop policy if exists "tasks_read_all" on public.tasks;
 drop policy if exists "submissions_select_own" on public.submissions;
 drop policy if exists "submissions_insert_own" on public.submissions;
@@ -52,14 +53,29 @@ drop policy if exists "admin_submissions_select_all" on public.submissions;
 drop policy if exists "admin_submissions_update_all" on public.submissions;
 drop policy if exists "admin_profiles_select_all" on public.profiles;
 drop policy if exists "admin_tasks_select_all" on public.tasks;
+drop policy if exists "admin_tasks_insert" on public.tasks;
+drop policy if exists "admin_tasks_update" on public.tasks;
+drop policy if exists "admin_tasks_delete" on public.tasks;
+
+-- Helper: admin check function
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_admin = true
+  );
+$$;
 
 -- Profiles: users can read/update their own profile; admins can manage via separate role
 create policy "profiles_select_own" on public.profiles
-for select using (auth.uid() = id);
+for select using (auth.uid() = id or public.is_admin());
 create policy "profiles_update_own" on public.profiles
-for update using (auth.uid() = id);
+for update using (auth.uid() = id or public.is_admin());
 create policy "profiles_insert_own" on public.profiles
-for insert with check (auth.uid() = id);
+for insert with check (auth.uid() = id or public.is_admin());
 
 -- Tasks: readable by all authenticated users
 create policy "tasks_read_all" on public.tasks
@@ -67,26 +83,26 @@ for select using (true);
 
 -- Submissions: users can read their own; insert their own; update only by admins (adjust later)
 create policy "submissions_select_own" on public.submissions
-for select using (auth.uid() = applicant_id);
+for select using (auth.uid() = applicant_id or public.is_admin());
 create policy "submissions_insert_own" on public.submissions
-for insert with check (auth.uid() = applicant_id);
+for insert with check (auth.uid() = applicant_id or public.is_admin());
 
 -- Admin policies for reading all submissions and updating statuses
 create policy "admin_submissions_select_all" on public.submissions
-for select using (true);
+for select using (public.is_admin());
 create policy "admin_submissions_update_all" on public.submissions
-for update using (true);
+for update using (public.is_admin());
 
 -- Admin policies for reading all profiles and tasks
 create policy "admin_profiles_select_all" on public.profiles
-for select using (true);
+for select using (public.is_admin());
 create policy "admin_tasks_select_all" on public.tasks
-for select using (true);
+for select using (public.is_admin());
 
 -- Admin policies for task management
 create policy "admin_tasks_insert" on public.tasks
-for insert with check (true);
+for insert with check (public.is_admin());
 create policy "admin_tasks_update" on public.tasks
-for update using (true);
+for update using (public.is_admin());
 create policy "admin_tasks_delete" on public.tasks
-for delete using (true);
+for delete using (public.is_admin());

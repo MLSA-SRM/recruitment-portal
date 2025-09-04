@@ -71,7 +71,7 @@ export function Navigation() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="text-2xl font-black tracking-tight text-gray-900">
-              MSASRM
+              MSA SRM
             </Link>
             <div className="w-24 h-8 bg-gray-200 animate-pulse rounded"></div>
           </div>
@@ -88,13 +88,13 @@ export function Navigation() {
           <Link href="/" className="flex items-center space-x-3 group">
             <Image 
               src="/logo.svg" 
-              alt="MSASRM" 
+              alt="MSA SRM" 
               width={32}
               height={32}
               className="h-8 w-8 transition-transform group-hover:scale-110"
             />
             <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-              MSASRM
+              MSA SRM
             </span>
           </Link>
           
@@ -104,12 +104,12 @@ export function Navigation() {
               // Not authenticated - show login/signup
               <>
                 <Link href="/auth/signin">
-                  <Button variant="ghost" className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-105">
+                  <Button variant="ghost" size="sm">
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:scale-105">
+                  <Button>
                     Get Started
                   </Button>
                 </Link>
@@ -118,11 +118,11 @@ export function Navigation() {
               // Authenticated but no profile - show profile setup
               <>
                 <Link href="/profile/setup">
-                  <Button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:scale-105">
+                  <Button>
                     Complete Profile
                   </Button>
                 </Link>
-                <Button variant="ghost" onClick={handleSignOut} className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-105">
+                <Button variant="ghost" onClick={handleSignOut} size="sm">
                   Sign Out
                 </Button>
               </>
@@ -130,27 +130,13 @@ export function Navigation() {
               // Authenticated with profile - show appropriate navigation
               <>
                 <Link href="/apply">
-                  <Button
-                    variant={isActive('/apply') ? 'default' : 'ghost'}
-                    className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                      isActive('/apply') 
-                        ? 'bg-blue-600 text-white shadow-md scale-105' 
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
+                  <Button variant={isActive('/apply') ? 'default' : 'ghost'}>
                     <Briefcase className="h-4 w-4 mr-2" />
                     Browse Tasks
                   </Button>
                 </Link>
                 <Link href="/dashboard">
-                  <Button
-                    variant={isActive('/dashboard') ? 'default' : 'ghost'}
-                    className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                      isActive('/dashboard') 
-                        ? 'bg-blue-600 text-white shadow-md scale-105' 
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
+                  <Button variant={isActive('/dashboard') ? 'default' : 'ghost'}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     My Submissions
                   </Button>
@@ -169,53 +155,25 @@ export function Navigation() {
                       </span>
                     </div>
                     <Link href="/admin/dashboard">
-                      <Button
-                        variant={isActive('/admin/dashboard') ? 'default' : 'ghost'}
-                        className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                          isActive('/admin/dashboard') 
-                            ? 'bg-blue-600 text-white shadow-md scale-105' 
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
+                      <Button variant={isActive('/admin/dashboard') ? 'default' : 'ghost'}>
                         <BarChart3 className="h-4 w-4 mr-2" />
                         Dashboard
                       </Button>
                     </Link>
                     <Link href="/admin/tasks">
-                      <Button
-                        variant={isActive('/admin/tasks') ? 'default' : 'ghost'}
-                        className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                          isActive('/admin/tasks') 
-                            ? 'bg-blue-600 text-white shadow-md scale-105' 
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
+                      <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'}>
                         <FileText className="h-4 w-4 mr-2" />
                         Tasks
                       </Button>
                     </Link>
                     <Link href="/admin/tasks/create">
-                      <Button
-                        variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'}
-                        className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                          isActive('/admin/tasks/create') 
-                            ? 'bg-blue-600 text-white shadow-md scale-105' 
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
+                      <Button variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'}>
                         <Plus className="h-4 w-4 mr-2" />
                         Create Task
                       </Button>
                     </Link>
                     <Link href="/admin/export">
-                      <Button
-                        variant={isActive('/admin/export') ? 'default' : 'ghost'}
-                        className={`px-4 py-2 transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                          isActive('/admin/export') 
-                            ? 'bg-blue-600 text-white shadow-md scale-105' 
-                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
+                      <Button variant={isActive('/admin/export') ? 'default' : 'ghost'}>
                         <BarChart3 className="h-4 w-4 mr-2" />
                         Export
                       </Button>
@@ -255,12 +213,7 @@ export function Navigation() {
             )}
 
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-105"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
               {mobileMenuOpen ? (
                 <X className="h-5 w-5 transition-transform duration-300 ease-in-out" />
               ) : (
@@ -278,12 +231,12 @@ export function Navigation() {
                 // Not authenticated - show login/signup
                 <>
                   <Link href="/auth/signin">
-                    <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                    <Button variant="ghost" className="w-full justify-start">
                       Sign In
                     </Button>
                   </Link>
                   <Link href="/auth/signup">
-                    <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                    <Button className="w-full justify-start">
                       Get Started
                     </Button>
                   </Link>
@@ -292,11 +245,11 @@ export function Navigation() {
                 // Authenticated but no profile - show profile setup
                 <>
                   <Link href="/profile/setup">
-                    <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                    <Button className="w-full justify-start">
                       Complete Profile
                     </Button>
                   </Link>
-                  <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-105">
+                  <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start">
                     Sign Out
                   </Button>
                 </>
@@ -304,27 +257,13 @@ export function Navigation() {
                 // Authenticated with profile - show appropriate navigation
                 <>
                   <Link href="/apply">
-                    <Button
-                      variant={isActive('/apply') ? 'default' : 'ghost'}
-                      className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                        isActive('/apply') 
-                          ? 'bg-blue-600 text-white' 
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
+                    <Button variant={isActive('/apply') ? 'default' : 'ghost'} className="w-full justify-start">
                       <Briefcase className="h-4 w-4 mr-2" />
                       Browse Tasks
                     </Button>
                   </Link>
                   <Link href="/dashboard">
-                    <Button
-                      variant={isActive('/dashboard') ? 'default' : 'ghost'}
-                      className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                        isActive('/dashboard') 
-                          ? 'bg-blue-600 text-white' 
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
+                    <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} className="w-full justify-start">
                       <UserCheck className="h-4 w-4 mr-2" />
                       My Submissions
                     </Button>
@@ -335,53 +274,25 @@ export function Navigation() {
                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</span>
                       </div>
                       <Link href="/admin/dashboard">
-                        <Button
-                          variant={isActive('/admin/dashboard') ? 'default' : 'ghost'}
-                          className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                            isActive('/admin/dashboard') 
-                              ? 'bg-blue-600 text-white' 
-                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                          }`}
-                        >
+                        <Button variant={isActive('/admin/dashboard') ? 'default' : 'ghost'} className="w-full justify-start">
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Dashboard
                         </Button>
                       </Link>
                       <Link href="/admin/tasks">
-                        <Button
-                          variant={isActive('/admin/tasks') ? 'default' : 'ghost'}
-                          className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                            isActive('/admin/tasks') 
-                              ? 'bg-blue-600 text-white' 
-                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                          }`}
-                        >
+                        <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'} className="w-full justify-start">
                           <FileText className="h-4 w-4 mr-2" />
                           Tasks
                         </Button>
                       </Link>
                       <Link href="/admin/tasks/create">
-                        <Button
-                          variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'}
-                          className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                            isActive('/admin/tasks/create') 
-                              ? 'bg-blue-600 text-white' 
-                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                          }`}
-                        >
+                        <Button variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'} className="w-full justify-start">
                           <Plus className="h-4 w-4 mr-2" />
                           Create Task
                         </Button>
                       </Link>
                       <Link href="/admin/export">
-                        <Button
-                          variant={isActive('/admin/export') ? 'default' : 'ghost'}
-                          className={`w-full justify-start transition-all duration-300 ease-in-out transform hover:scale-[1.02] ${
-                            isActive('/admin/export') 
-                              ? 'bg-blue-600 text-white' 
-                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                          }`}
-                        >
+                        <Button variant={isActive('/admin/export') ? 'default' : 'ghost'} className="w-full justify-start">
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Export
                         </Button>
@@ -403,7 +314,7 @@ export function Navigation() {
                           {profile.name}
                         </span>
                       </div>
-                      <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-[1.02]">
+                      <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start">
                         Sign Out
                       </Button>
                     </>

@@ -1,10 +1,12 @@
 'use server'
 
 import { createSupabaseServer } from '@/lib/supabase'
-import { getGeminiModel, parseGeminiJsonResponse, PROMPTS } from '@/lib/ai'
+import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS } from '@/lib/ai'
 import { Octokit } from 'octokit'
 import * as cheerio from 'cheerio'
 import Papa from 'papaparse'
+import { z } from 'zod'
+import env from '@/env'
 
 type Status = 'pending' | 'shortlisted' | 'rejected'
 type ReviewContext = 'new' | 'edit'
@@ -18,7 +20,7 @@ async function getCurrentUserId(): Promise<string | null> {
 async function fetchGithubRepoFiles(repoUrl: string): Promise<string> {
   try {
     console.log('Fetching GitHub repo files from:', repoUrl)
-    const token = process.env.GITHUB_TOKEN
+    const token = env.GITHUB_TOKEN
     if (!token) {
       console.log('No GitHub token found, skipping GitHub content fetch')
       return ''
@@ -105,24 +107,16 @@ async function performAIReview(opts: {
   taskId: number
   userId: string
   submissionUrl: string
+  submissionData?: Record<string, unknown>
   context: ReviewContext
 }) {
-  const { supabase, submissionId, taskId, userId, submissionUrl, context } = opts
+  const { supabase, submissionId, taskId, userId, submissionUrl, submissionData, context } = opts
 
   console.log(`[AI][${context}] performAIReview called`, { submissionId, taskId, userId, url: submissionUrl })
 
-  if (!submissionUrl || submissionUrl.trim().length === 0) {
-    console.log(`[AI][${context}] No submission URL provided; writing skip message`)
-    await supabase.from('submissions').update({
-      ai_score: 0,
-      ai_review: 'AI review skipped: No submission URL provided. Please add a valid URL and save again.'
-    }).eq('id', submissionId)
-    return
-  }
-
   const { data: task } = await supabase
     .from('tasks')
-    .select('title, description, domain, subdomain, target_year, deadline')
+    .select('title, description, domain, subdomain, target_year, deadline, image_url')
     .eq('id', taskId)
     .single()
   const { data: profile } = await supabase.from('profiles').select('year').eq('id', userId).single()
@@ -133,24 +127,92 @@ async function performAIReview(opts: {
     ai_review: context === 'edit' ? 'AI review in progress... (submission was updated)' : 'AI review in progress...'
   }).eq('id', submissionId)
 
-  // Build content and prompt
+  // Build content and prompt from all submission data
   let content = ''
   let prompt = ''
   let hasValidContent = false
 
+  // Start with submission field data
+  const submissionContent: string[] = []
+  
+  if (submissionData && Object.keys(submissionData).length > 0) {
+    submissionContent.push('## Submission Information:')
+    Object.entries(submissionData).forEach(([, fieldInfo]) => {
+      if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { value, type, label } = fieldInfo as any
+        
+        if (type === 'url' && typeof value === 'string') {
+          submissionContent.push(`**${label}:** ${value}`)
+        } else if (type === 'text' || type === 'textarea' || type === 'email') {
+          submissionContent.push(`**${label}:** ${value}`)
+        } else if (type === 'number') {
+          submissionContent.push(`**${label}:** ${value}`)
+        } else if (type === 'select') {
+          submissionContent.push(`**${label}:** ${value}`)
+        } else if (type === 'checkbox') {
+          const checkboxValue = Array.isArray(value) ? value.join(', ') : value
+          submissionContent.push(`**${label}:** ${checkboxValue}`)
+        } else if (type === 'file' && typeof value === 'object') {
+          submissionContent.push(`**${label}:** File uploaded - ${value.name} (${value.type}, ${Math.round(value.size / 1024)}KB)`)
+        }
+      }
+    })
+  }
+
   try {
-    if (task?.domain === 'Technical' && /github\.com\//i.test(submissionUrl)) {
-      content = await fetchGithubRepoFiles(submissionUrl)
-      hasValidContent = !!(content && content.trim().length > 0)
-      if (hasValidContent) {
-        prompt = (profile?.year ?? 1) <= 1 ? PROMPTS.tech_first_year(content) : PROMPTS.tech_second_year(content)
+    // Derive external sources from submission_data only
+    const urlsFromFields: string[] = []
+    const possibleGithubTexts: string[] = []
+    if (submissionData) {
+      for (const [, info] of Object.entries(submissionData)) {
+        type FieldInfo = { value?: unknown }
+        const fieldInfo = info as FieldInfo
+        const raw = String(fieldInfo?.value ?? '')
+        if (!raw) continue
+        // Extract URLs present in the value
+        const urlRegex = /https?:\/\/[\w.-]+(?:\.[\w\.-]+)+(?:[\w\-\._~:\/?#\[\]@!$&'()*+,;=%]*)/gi
+        const matches = raw.match(urlRegex)
+        if (matches) urlsFromFields.push(...matches)
+        // Collect text that might include keywords like github
+        if (typeof fieldInfo?.value === 'string') {
+          possibleGithubTexts.push((fieldInfo.value as string).toLowerCase())
+        }
       }
-    } else {
-      content = await scrapePageText(submissionUrl)
-      hasValidContent = !!(content && content.trim().length > 0)
-      if (hasValidContent) {
-        prompt = task?.domain === 'Corporate' ? PROMPTS.corporate(content) : ((profile?.year ?? 1) <= 1 ? PROMPTS.tech_first_year(content) : PROMPTS.tech_second_year(content))
+    }
+
+    // Prefer GitHub URLs if present; else any URL
+    const primaryGithubUrl = urlsFromFields.find(u => /github\.com\//i.test(u))
+    const primaryUrl = urlsFromFields.find(u => !/github\.com\//i.test(u))
+
+    // Heuristic keyword-only cue to fetch GitHub if no URL but text mentions it
+    const mentionsGithub = possibleGithubTexts.some(t => t.includes('github'))
+
+    if (task?.domain === 'Technical' && (primaryGithubUrl || mentionsGithub)) {
+      const githubContent = await fetchGithubRepoFiles(primaryGithubUrl || '')
+      if (githubContent && githubContent.trim().length > 0) {
+        submissionContent.push('\n## Repository Content:')
+        submissionContent.push(githubContent)
+        hasValidContent = true
       }
+    } else if (primaryUrl) {
+      const scrapedContent = await scrapePageText(primaryUrl)
+      if (scrapedContent && scrapedContent.trim().length > 0) {
+        submissionContent.push('\n## Website Content:')
+        submissionContent.push(scrapedContent)
+        hasValidContent = true
+      }
+    }
+    
+    // Check if we have any content from submission fields
+    if (submissionContent.length > 1) { // More than just the header
+      hasValidContent = true
+    }
+    
+    content = submissionContent.join('\n\n')
+    
+    if (hasValidContent) {
+      prompt = task?.domain === 'Corporate' ? PROMPTS.corporate(content) : ((profile?.year ?? 1) <= 1 ? PROMPTS.tech_first_year(content) : PROMPTS.tech_second_year(content))
     }
   } catch (e) {
     console.error(`[AI][${context}] Content fetch failed:`, e)
@@ -160,7 +222,7 @@ async function performAIReview(opts: {
     console.log(`[AI][${context}] No valid content/prompt; writing skip message`)
     await supabase.from('submissions').update({
       ai_score: 0,
-      ai_review: 'AI review skipped: No valid content to analyze. Ensure the URL is public and has readable content.'
+      ai_review: 'AI review skipped: No valid content to analyze. Please provide sufficient details in the form fields.'
     }).eq('id', submissionId)
     return
   }
@@ -169,7 +231,7 @@ async function performAIReview(opts: {
     console.log(`[AI][${context}] Calling model for submission ${submissionId}`)
     const model = getGeminiModel('gemini-2.0-flash')
     // Encourage concise output and include task context
-    const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Target Year: ${task?.target_year ?? ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}`
+    const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Target Year: ${task?.target_year ?? ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}${task?.image_url ? `\n- Task Image URL: ${task.image_url}` : ''}`
     const concisePrompt = `${taskContext}
 
 ${prompt}
@@ -179,30 +241,33 @@ CONSTRAINTS:
 - Use clear headings and bullet points
 - Avoid verbose introductions; focus on findings and recommendations`
 
-    // Cap output tokens for efficiency
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: concisePrompt }] }],
-      generationConfig: { maxOutputTokens: 800 }
-    })
-    const text = result.response.text()
-    let parsed = await parseGeminiJsonResponse(text)
-    if (parsed.score === 0 && parsed.review.includes('AI Review Error')) {
-      console.warn(`[AI][${context}] First parse produced error; retrying with strict JSON prompt`)
-      const strictPrompt = `${concisePrompt}\n\nIMPORTANT: Respond with ONLY a valid JSON object containing exactly these fields:\n{"score": <integer 0-1000>, "review": "<markdown text>"}\nDo not include code fences or any extra text.`
-      const retry = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: strictPrompt }] }],
+    // Use structured output to prevent parsing issues
+    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | 'neutral' | null }
+    try {
+      parsed = await generateStructuredReview(model, concisePrompt)
+    } catch (structuredError) {
+      console.warn(`[AI][${context}] Structured output failed, falling back to legacy parsing:`, structuredError)
+      // Fallback to legacy parsing method
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: concisePrompt }] }],
         generationConfig: { maxOutputTokens: 800 }
       })
-      parsed = await parseGeminiJsonResponse(retry.response.text())
+      const text = result.response.text()
+      parsed = await parseGeminiJsonResponse(text)
     }
+    
     if (typeof parsed.score === 'number' && typeof parsed.review === 'string') {
       // Add AI recommendation banner and trim review to a safe maximum length for storage/display
-      const recommendation = getAiRecommendation(parsed.score)
+      const recommendation = parsed.recommendation ?? getAiRecommendation(parsed.score) ?? 'neutral'
       const banner = recommendation ? `> AI Recommendation: ${recommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n` : ''
       const withBanner = banner + parsed.review
       const MAX_REVIEW_CHARS = 4000
       const trimmedReview = withBanner.length > MAX_REVIEW_CHARS ? withBanner.slice(0, MAX_REVIEW_CHARS) + '\n\n…(trimmed)' : withBanner
-      await supabase.from('submissions').update({ ai_score: parsed.score, ai_review: trimmedReview }).eq('id', submissionId)
+      await supabase.from('submissions').update({ 
+        ai_score: parsed.score, 
+        ai_review: trimmedReview,
+        ai_recommendation: recommendation
+      }).eq('id', submissionId)
       console.log(`[AI][${context}] AI review stored`, { submissionId, score: parsed.score, recommendation })
       return
     }
@@ -228,12 +293,18 @@ CONSTRAINTS:
   }
 }
 
+const handleSubmissionSchema = z.object({
+  taskId: z.coerce.number().int().positive(),
+})
+
 export async function handleSubmission(formData: FormData) {
   const supabase = await createSupabaseServer()
   const userId = await getCurrentUserId()
   if (!userId) throw new Error('Not authenticated')
 
-  const taskId = Number(formData.get('taskId'))
+  const parsed = handleSubmissionSchema.safeParse({ taskId: formData.get('taskId') })
+  if (!parsed.success) throw new Error('Invalid submission payload')
+  const taskId = parsed.data.taskId
   console.log('Processing submission for task ID:', taskId)
   
   // Check if this task has custom submission fields
@@ -244,39 +315,91 @@ export async function handleSubmission(formData: FormData) {
     .order('display_order')
 
   console.log('Found submission fields:', submissionFields?.length || 0)
-  
+
   let submissionUrl = ''
+  const submissionData: Record<string, unknown> = {}
   
   if (submissionFields && submissionFields.length > 0) {
-    // Process custom submission fields - for now, just collect URLs
+    // Process all custom submission fields
     submissionFields.forEach(field => {
       const fieldName = `field_${field.field_name}`
       console.log('Processing field:', field.field_name, 'type:', field.field_type)
       
-      if (field.field_type === 'url') {
-        const value = formData.get(fieldName)
-        console.log('URL field value:', value)
-        if (value && typeof value === 'string') {
-          submissionUrl = value
+      let fieldValue: unknown = null
+      
+      switch (field.field_type) {
+        case 'text':
+        case 'textarea':
+        case 'email':
+        case 'url':
+        case 'number':
+          fieldValue = formData.get(fieldName)
+          if (field.field_type === 'number' && fieldValue) {
+            fieldValue = Number(fieldValue)
+          }
+          break
+          
+        case 'select':
+          fieldValue = formData.get(fieldName)
+          break
+          
+        case 'checkbox':
+          // Handle multiple checkbox values
+          const checkboxValues = formData.getAll(`${fieldName}[]`)
+          fieldValue = checkboxValues.length > 0 ? checkboxValues : formData.get(fieldName)
+          break
+          
+        case 'file':
+          const file = formData.get(fieldName) as File
+          if (file && file.size > 0) {
+            // Store file metadata (in a real app, you'd upload to storage)
+            fieldValue = {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: file.lastModified
+            }
+          }
+          break
+      }
+      
+      if (fieldValue !== null && fieldValue !== '') {
+        submissionData[field.field_name] = {
+          value: fieldValue,
+          type: field.field_type,
+          label: field.field_label
+        }
+        
+        // Keep the first URL as the primary submission URL for backward compatibility
+        if (field.field_type === 'url' && !submissionUrl) {
+          submissionUrl = String(fieldValue)
         }
       }
     })
   } else {
     // Fallback to simple submission URL
     submissionUrl = String(formData.get('submissionUrl') || '')
+    if (submissionUrl) {
+      submissionData['submission_url'] = {
+        value: submissionUrl,
+        type: 'url',
+        label: 'Submission URL'
+      }
+    }
     console.log('Using fallback submission URL:', submissionUrl)
   }
 
   console.log('Final submission URL:', submissionUrl)
+  console.log('Submission data:', submissionData)
 
-  // For now, use the current schema with submission_url
-  // TODO: Run migration to add submission_data column
+  // Insert submission with all field data
   const { data: submission, error } = await supabase
     .from('submissions')
     .insert({ 
       applicant_id: userId, 
       task_id: taskId, 
       submission_url: submissionUrl, 
+      submission_data: submissionData,
       status: 'pending' 
     })
     .select('id')
@@ -287,7 +410,7 @@ export async function handleSubmission(formData: FormData) {
   console.log('Submission created with ID:', submission.id)
 
   ;(async () => {
-    await performAIReview({ supabase, submissionId: submission!.id, taskId, userId, submissionUrl, context: 'new' })
+    await performAIReview({ supabase, submissionId: submission!.id, taskId, userId, submissionUrl: '', submissionData, context: 'new' })
   })()
 
   return { ok: true }
@@ -298,37 +421,44 @@ async function retryAIReview(submissionId: number, prompt: string, supabase: Awa
     console.log(`[AI][retry] Retrying AI review for submission ${submissionId}`)
     
     const model = getGeminiModel('gemini-2.0-flash')
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 800 }
-    })
-    const responseText = result.response.text()
     
-    console.log(`[AI][retry] Response received, length: ${responseText.length}`)
-    
-    // Parse the response
-    let parsed = await parseGeminiJsonResponse(responseText)
-    if (parsed.score === 0 && parsed.review.includes('AI Review Error')) {
-      console.warn('[AI][retry] First parse produced error; retrying with strict JSON prompt')
-      const strictPrompt = `${prompt}\n\nIMPORTANT: Respond with ONLY a valid JSON object containing exactly these fields:\n{"score": <integer 0-1000>, "review": "<markdown text>"}\nDo not include code fences or any extra text.`
-      const retryStrict = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: strictPrompt }] }],
+    // Use structured output to prevent parsing issues
+    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | 'neutral' | null }
+    try {
+      parsed = await generateStructuredReview(model, prompt)
+    } catch (structuredError) {
+      console.warn('[AI][retry] Structured output failed, falling back to legacy parsing:', structuredError)
+      // Fallback to legacy parsing method
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { maxOutputTokens: 800 }
       })
-      parsed = await parseGeminiJsonResponse(retryStrict.response.text())
+      const responseText = result.response.text()
+      console.log(`[AI][retry] Response received, length: ${responseText.length}`)
+      const legacyParsed = await parseGeminiJsonResponse(responseText)
+      // Add recommendation based on score for legacy parsing
+      parsed = {
+        ...legacyParsed,
+        recommendation: getAiRecommendation(legacyParsed.score)
+      }
     }
     
     if (parsed.score !== undefined && parsed.review) {
-      const recommendation = getAiRecommendation(parsed.score)
-      const banner = recommendation ? `> AI Recommendation: ${recommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n` : ''
+          const fallback = getAiRecommendation(parsed.score)
+    const recommendation: 'shortlist' | 'reject' | 'neutral' = (parsed.recommendation ?? (fallback ?? 'neutral')) as 'shortlist' | 'reject' | 'neutral'
+
+    // Ensure recommendation is one of the valid values
+    const validRecommendation: 'shortlist' | 'reject' | 'neutral' = recommendation === 'shortlist' || recommendation === 'reject' ? recommendation : 'neutral'
+      const banner = validRecommendation !== 'neutral' ? `> AI Recommendation: ${validRecommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n` : ''
       const withBanner = banner + parsed.review
       const MAX_REVIEW_CHARS = 4000
       const trimmedReview = withBanner.length > MAX_REVIEW_CHARS ? withBanner.slice(0, MAX_REVIEW_CHARS) + '\n\n…(trimmed)' : withBanner
-      await supabase.from('submissions').update({ 
-        ai_score: parsed.score, 
-        ai_review: trimmedReview 
+      await supabase.from('submissions').update({
+        ai_score: parsed.score,
+        ai_review: trimmedReview,
+        ai_recommendation: validRecommendation
       }).eq('id', submissionId)
-      console.log(`[AI][retry] Completed successfully, score: ${parsed.score}, recommendation: ${recommendation}`)
+      console.log(`[AI][retry] Completed successfully, score: ${parsed.score}, recommendation: ${validRecommendation}`)
     } else {
       throw new Error('Invalid response structure from AI model during retry')
     }
@@ -369,6 +499,20 @@ export async function exportShortlistedCSV(): Promise<string> {
   return csv
 }
 
+const createTaskSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional().default(''),
+  domain: z.string().min(1),
+  subdomain: z.string().min(1),
+  target_year: z.coerce.number().int().positive(),
+  deadline: z.string().min(1),
+  estimated_duration: z.string().optional().default(''),
+  requirements: z.string().optional().default(''),
+  deliverables: z.string().optional().default(''),
+  image_url: z.string().url().optional().or(z.literal('')).transform(v => v || null),
+  submissionFields: z.string().optional(),
+})
+
 export async function createTask(formData: FormData) {
   const submissionId = formData.get('submissionId')
   const timestamp = formData.get('timestamp')
@@ -378,17 +522,25 @@ export async function createTask(formData: FormData) {
   const userId = await getCurrentUserId()
   if (!userId) throw new Error('Not authenticated')
 
-  const title = String(formData.get('title'))
-  const description = String(formData.get('description') || '')
-  const domain = String(formData.get('domain'))
-  const subdomain = String(formData.get('subdomain') || '')
-  const targetYear = Number(formData.get('target_year'))
-  const deadline = String(formData.get('deadline') || '')
+  const parsed = createTaskSchema.safeParse({
+    title: formData.get('title'),
+    description: formData.get('description') || '',
+    domain: formData.get('domain'),
+    subdomain: formData.get('subdomain') || '',
+    target_year: formData.get('target_year'),
+    deadline: formData.get('deadline') || '',
+    estimated_duration: formData.get('estimated_duration') || '',
+    requirements: formData.get('requirements') || '',
+    deliverables: formData.get('deliverables') || '',
+    image_url: formData.get('image_url') || '',
+    submissionFields: formData.get('submissionFields') || undefined,
+  })
+  if (!parsed.success) throw new Error('Invalid task payload')
+  const { title, description, domain, subdomain, target_year: targetYear, deadline, estimated_duration: estimatedDuration, requirements, deliverables, image_url: imageUrl, submissionFields: submissionFieldsData } = parsed.data
   
   console.log('Task data to create:', { title, domain, subdomain, targetYear, deadline })
   
   // Get submission fields from form data
-  const submissionFieldsData = formData.get('submissionFields')
   let submissionFields: Record<string, unknown>[] = []
   if (submissionFieldsData) {
     try {
@@ -398,9 +550,7 @@ export async function createTask(formData: FormData) {
     }
   }
 
-  if (!title || !domain || !subdomain || !targetYear || !deadline) {
-    throw new Error('Missing required fields')
-  }
+  // required fields covered by Zod
 
   // Check if a task with the same title and domain already exists
   const { data: existingTask } = await supabase
@@ -428,8 +578,11 @@ export async function createTask(formData: FormData) {
       domain,
       subdomain,
       target_year: targetYear,
-      deadline
-      // requirements, deliverables, created_by - these columns don't exist yet
+      deadline,
+      estimated_duration: estimatedDuration,
+      requirements,
+      deliverables,
+      image_url: imageUrl || null
     })
     .select('id')
     .single()
@@ -517,21 +670,75 @@ export async function updateSubmission(formData: FormData) {
     .order('display_order')
 
   let submissionUrl = ''
-  
+  const submissionData: Record<string, unknown> = {}
+
   if (submissionFields && submissionFields.length > 0) {
-    // Process custom submission fields - for now, just collect URLs
+    // Process all custom submission fields
     submissionFields.forEach(field => {
-      if (field.field_type === 'url') {
-        const fieldName = `field_${field.field_name}`
-        const value = formData.get(fieldName)
-        if (value && typeof value === 'string') {
-          submissionUrl = value
+      const fieldName = `field_${field.field_name}`
+      console.log('Processing field:', field.field_name, 'type:', field.field_type)
+      
+      let fieldValue: unknown = null
+      
+      switch (field.field_type) {
+        case 'text':
+        case 'textarea':
+        case 'email':
+        case 'url':
+        case 'number':
+          fieldValue = formData.get(fieldName)
+          if (field.field_type === 'number' && fieldValue) {
+            fieldValue = Number(fieldValue)
+          }
+          break
+          
+        case 'select':
+          fieldValue = formData.get(fieldName)
+          break
+          
+        case 'checkbox':
+          // Handle multiple checkbox values
+          const checkboxValues = formData.getAll(`${fieldName}[]`)
+          fieldValue = checkboxValues.length > 0 ? checkboxValues : formData.get(fieldName)
+          break
+          
+        case 'file':
+          const file2 = formData.get(fieldName) as File
+          if (file2 && file2.size > 0) {
+            // Store file metadata (in a real app, you'd upload to storage)
+            fieldValue = {
+              name: file2.name,
+              size: file2.size,
+              type: file2.type,
+              lastModified: file2.lastModified
+            }
+          }
+          break
+      }
+      
+      if (fieldValue !== null && fieldValue !== '') {
+        submissionData[field.field_name] = {
+          value: fieldValue,
+          type: field.field_type,
+          label: field.field_label
+        }
+        
+        // Keep the first URL as the primary submission URL for backward compatibility
+        if (field.field_type === 'url' && !submissionUrl) {
+          submissionUrl = String(fieldValue)
         }
       }
     })
   } else {
     // Fallback to simple submission URL
     submissionUrl = String(formData.get('submissionUrl') || '')
+    if (submissionUrl) {
+      submissionData['submission_url'] = {
+        value: submissionUrl,
+        type: 'url',
+        label: 'Submission URL'
+      }
+    }
   }
 
   // Update the submission
@@ -539,6 +746,7 @@ export async function updateSubmission(formData: FormData) {
     .from('submissions')
     .update({ 
       submission_url: submissionUrl,
+      submission_data: submissionData,
       updated_at: new Date().toISOString()
     })
     .eq('id', submissionId)
@@ -549,7 +757,7 @@ export async function updateSubmission(formData: FormData) {
   console.log('Submission updated, triggering AI review for submission ID:', submissionId)
   
   ;(async () => {
-    await performAIReview({ supabase, submissionId, taskId, userId, submissionUrl, context: 'edit' })
+    await performAIReview({ supabase, submissionId, taskId, userId, submissionUrl: '', submissionData, context: 'edit' })
   })()
 
   return { ok: true }
@@ -560,15 +768,37 @@ export async function canSubmitToTask(taskId: number) {
   const userId = await getCurrentUserId()
   if (!userId) throw new Error('Not authenticated')
 
+  // Get user profile to check if they can access this task
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('domain, subdomain, year, is_admin')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) {
+    throw new Error('Profile not found')
+  }
+
   // Get task details
   const { data: task } = await supabase
     .from('tasks')
-    .select('deadline')
+    .select('deadline, domain, subdomain, target_year')
     .eq('id', taskId)
     .single()
 
   if (!task) {
     throw new Error('Task not found')
+  }
+
+  // Check if user can access this task (admin can see all, others only see matching tasks)
+  if (!profile.is_admin) {
+    const canAccess = task.domain === profile.domain && 
+                     task.subdomain === profile.subdomain && 
+                     task.target_year === profile.year
+    
+    if (!canAccess) {
+      throw new Error('Access denied - task does not match your profile')
+    }
   }
 
   // Check if deadline has passed
@@ -628,7 +858,7 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
 
   const { data: row, error } = await supabase
     .from('submissions')
-    .select('id, task_id, applicant_id, submission_url')
+    .select('id, task_id, applicant_id, submission_data')
     .eq('id', submissionId)
     .single()
 
@@ -646,7 +876,8 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
         submissionId: row.id,
         taskId: row.task_id as number,
         userId: row.applicant_id as string,
-        submissionUrl: row.submission_url || '',
+        submissionUrl: '',
+        submissionData: row.submission_data as Record<string, unknown>,
         context: 'edit'
       })
     } catch (e) {

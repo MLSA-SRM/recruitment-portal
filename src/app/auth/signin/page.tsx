@@ -49,7 +49,7 @@ export default function SignInPage() {
         <div className="text-center mb-8">
           <Image
             src="/logo.svg"
-            alt="MSASRM"
+            alt="MSA SRM"
             width={64}
             height={64}
             className="h-16 w-16 mx-auto mb-4"

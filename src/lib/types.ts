@@ -25,6 +25,7 @@ export interface Task {
   created_at: string
   updated_at: string
   submission_fields?: SubmissionField[]
+  image_url?: string
 }
 
 export interface SubmissionField {
@@ -60,11 +61,14 @@ export interface SubmissionWithTask {
   status: string
   ai_score?: number
   ai_review?: string
+  ai_recommendation?: 'shortlist' | 'reject'
   created_at: string
+  updated_at?: string
   tasks: Array<{
     title: string
     domain: string
     subdomain?: string
+    target_year?: number
     deadline?: string
   }> | null
 }

@@ -5,7 +5,6 @@ import { createSupabaseClient } from '@/lib/supabase-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 export default function SignUpPage() {
@@ -13,8 +12,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const router = useRouter()
-      const supabase = createSupabaseClient()
+  const supabase = createSupabaseClient()
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault()
@@ -33,18 +31,7 @@ export default function SignUpPage() {
       if (error) {
         setMessage(error.message)
       } else {
-        // After successful signup, automatically sign in the user
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-
-        if (signInError) {
-          setMessage('Account created but sign-in failed. Please try signing in manually.')
-        } else {
-          router.push('/profile/setup')
-          router.refresh()
-        }
+        setMessage('Account created successfully! Please check your email and click the confirmation link to activate your account.')
       }
     } catch {
       setMessage('An unexpected error occurred')
@@ -60,7 +47,7 @@ export default function SignUpPage() {
         <div className="text-center mb-8">
           <Image
             src="/logo.svg"
-            alt="MSASRM"
+            alt="MSA SRM"
             width={64}
             height={64}
             className="h-16 w-16 mx-auto mb-4"
@@ -72,7 +59,7 @@ export default function SignUpPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Join MSASRM
+              Join MSA SRM
             </h2>
             <p className="text-sm text-gray-500">
               Create your account to get started
@@ -100,7 +87,7 @@ export default function SignUpPage() {
 
             {message && (
               <div className="text-sm text-center py-2">
-                <span className={message.includes('Check your email') ? 'text-green-600' : 'text-red-600'}>
+                <span className={message.includes('Account created successfully') || message.includes('Check your email') ? 'text-green-600' : 'text-red-600'}>
                   {message}
                 </span>
               </div>

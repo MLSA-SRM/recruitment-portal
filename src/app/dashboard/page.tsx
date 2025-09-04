@@ -3,8 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import React from 'react'
-import { Edit, Clock, AlertCircle } from 'lucide-react'
-import AiReviewRefresher from '@/components/ai-review-refresher'
+import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 
 export default async function DashboardPage() {
@@ -51,7 +50,8 @@ export default async function DashboardPage() {
       ai_score,
       ai_review,
       created_at,
-      tasks(title, domain, subdomain, deadline)
+      updated_at,
+      tasks(title, domain, subdomain, target_year, deadline)
     `)
     .eq('applicant_id', user.id)
     .order('created_at', { ascending: false })
@@ -60,99 +60,137 @@ export default async function DashboardPage() {
 
   const now = new Date()
 
-  // Determine if any submission is in evaluation
-  const isAnyEvaluating = (typedSubmissions || []).some((submission) => submission.ai_score === null || String(submission.ai_review || '').toLowerCase().includes('in progress'))
+  function normalizeDeadlineToEndOfDay(dateLike: string): Date {
+    const base = new Date(dateLike)
+    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
+  }
+
+  
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      {/* While any submission is evaluating, periodically refresh the page to fetch new AI results */}
-      {isAnyEvaluating ? <AiReviewRefresher /> : null}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">My Dashboard</h1>
-        <p className="text-gray-600">Track your submissions and view AI feedback</p>
+    <div className="max-w-5xl mx-auto p-4">
+      <div className="mb-5">
+        <h1 className="text-2xl font-semibold mb-1">My Dashboard</h1>
+        <p className="text-sm text-gray-600">Track your submissions and updates</p>
       </div>
 
       {typedSubmissions && typedSubmissions.length > 0 ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {typedSubmissions.map((submission) => {
-            // Check if deadline has passed
-            const task = submission.tasks?.[0]
-            const deadline = task?.deadline ? new Date(task.deadline) : null
+            // Normalize task relation (can be object or single-item array depending on PostgREST)
+            const rawTask = submission.tasks as unknown
+            const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; target_year?: number; deadline?: string }) | null)
+            const deadline = task?.deadline ? normalizeDeadlineToEndOfDay(task.deadline) : null
             const deadlinePassed = deadline ? deadline < now : false
             const canEdit = submission.status === 'pending' && !deadlinePassed
             
             return (
-              <div key={submission.id} className="bg-white p-6 rounded-lg shadow border">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-2">
+              <div key={submission.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200">
+                {/* Header Section */}
+                <div className="relative bg-white px-4 py-4 border-b border-gray-100">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
                       {task?.title}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                      <span><strong>Domain:</strong> {task?.domain}</span>
-                      {task?.subdomain && (
-                        <span><strong>Subdomain:</strong>
-                          {task?.subdomain}
-                        </span>
-                      )}
-                      <span><strong>Submitted:</strong> {new Date(submission.created_at!).toLocaleDateString()}</span>
+                      
                     </div>
                     
-                    {/* Deadline Information */}
-                    {task?.deadline && (
-                      <div className="flex items-center gap-2 text-sm mb-3">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">
-                          <strong>Deadline:</strong> {new Date(task.deadline).toLocaleDateString()}
-                        </span>
-                        {deadlinePassed ? (
-                          <Badge variant="destructive" className="text-xs">
-                            Deadline Passed
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-4 mb-3"></div>
-                  </div>
-                  
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge 
-                      variant={
-                        submission.status === 'shortlisted' ? 'default' : 
-                        submission.status === 'rejected' ? 'destructive' : 
-                        'secondary'
-                      }
-                    >
-                      {submission.status}
-                    </Badge>
-                    
-                    {/* Edit Button */}
-                    {canEdit ? (
-                      <Link href={`/dashboard/edit/${submission.id}`}>
-                        <Button size="sm" variant="outline" className="flex items-center gap-2">
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                      </Link>
-                    ) : deadlinePassed ? (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <AlertCircle className="h-3 w-3" />
-                        <span>Deadline passed</span>
-                      </div>
-                    ) : submission.status !== 'pending' ? (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span>Already reviewed</span>
-                      </div>
-                    ) : null}
+                    {/* Header Actions */}
+                    <div className="ml-4 flex-shrink-0">
+                      {canEdit ? (
+                        <Link href={`/dashboard/edit/${submission.id}`}>
+                          <Button size="sm" variant="outline" className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                            <Edit className="h-4 w-4" />
+                            Edit
+                          </Button>
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-                
-                {/* AI review is hidden for applicants */}
+
+                {/* Content Section */}
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {/* Submission Details Grid (compact; removed Task/Domain/Status duplicates) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Target Year */}
+                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-center w-8 h-8 bg-amber-100 rounded-md">
+                          <FileText className="h-4 w-4 text-amber-700" />
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-gray-500">Target Year</div>
+                          <div className="text-sm font-medium text-gray-900">{task?.target_year ? `${task.target_year}${task.target_year === 1 ? 'st' : task.target_year === 2 ? 'nd' : 'rd'} Year` : '—'}</div>
+                        </div>
+                      </div>
+
+                      {/* Submitted Date */}
+                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-center w-8 h-8 bg-emerald-100 rounded-md">
+                          <Calendar className="h-4 w-4 text-emerald-700" />
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-gray-500">Submitted</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {new Date(submission.created_at!).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Last Edited */}
+                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-md">
+                          <Edit className="h-4 w-4 text-purple-700" />
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-gray-500">Last Edited</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {submission.updated_at ? new Date(submission.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deadline */}
+                      {task?.deadline && (
+                        <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-md ${deadlinePassed ? 'bg-red-100' : 'bg-green-100'}`}>
+                            <Clock className={`h-4 w-4 ${deadlinePassed ? 'text-red-600' : 'text-green-600'}`} />
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-gray-500">Deadline</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {new Date(task.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                              {deadlinePassed ? (
+                                <Badge variant="destructive" className="ml-2 text-[10px]">Passed</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="ml-2 text-[10px]">Active</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    
+
+                    {/* Action Section (no edit button here anymore) */}
+                    <div className="flex items-center justify-end pt-1">
+                      {deadlinePassed ? (
+                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Cannot Edit</span>
+                        </div>
+                      ) : submission.status !== 'pending' ? (
+                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-md">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Final</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
             )
           })}

@@ -35,6 +35,11 @@ export type Database = {
           domain: string
           subdomain: string | null
           target_year: number
+          deadline?: string | null
+          estimated_duration?: string | null
+          requirements?: string | null
+          deliverables?: string | null
+          image_url?: string | null
         }
         Insert: Omit<Database['public']['Tables']['tasks']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['tasks']['Row']>

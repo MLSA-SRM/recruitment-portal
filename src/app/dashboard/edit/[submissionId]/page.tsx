@@ -42,6 +42,18 @@ interface Submission {
   updated_at: string
 }
 
+interface StructuredFieldValue {
+  label?: string
+  type?: string
+  value?: string
+}
+
+type StructuredSubmissionData = Record<string, StructuredFieldValue>
+
+interface SubmissionWithData extends Submission {
+  submission_data?: StructuredSubmissionData
+}
+
 export default function EditSubmissionPage() {
   const params = useParams<{ submissionId: string }>()
   const submissionId = params?.submissionId
@@ -101,9 +113,17 @@ export default function EditSubmissionPage() {
 
           // Initialize form data with current submission values
           const initialData: Record<string, string> = {}
+          const submissionDataMap = (submissionData as SubmissionWithData)?.submission_data || {}
           fields.forEach(field => {
-            if (field.field_type === 'url') {
-              initialData[`field_${field.field_name}`] = submissionData.submission_url || ''
+            const key = `field_${field.field_name}`
+            const fromStructured = submissionDataMap?.[field.field_name]?.value
+            if (typeof fromStructured === 'string' && fromStructured.length > 0) {
+              initialData[key] = fromStructured
+            } else if (field.field_type === 'url') {
+              // Fallback to legacy submission_url when appropriate
+              initialData[key] = submissionData.submission_url || ''
+            } else {
+              initialData[key] = ''
             }
           })
           setFormData(initialData)
@@ -188,11 +208,27 @@ export default function EditSubmissionPage() {
       console.log('Updating submission with URL:', submissionUrl)
       console.log('Submission ID:', submissionId)
 
+      // Build structured submission_data from fields + existing
+      const existingStructured: StructuredSubmissionData = (submission as SubmissionWithData)?.submission_data || {}
+      const newStructured: StructuredSubmissionData = { ...existingStructured }
+      if (submissionFields.length > 0) {
+        submissionFields.forEach(field => {
+          const key = field.field_name
+          const value = (formData[`field_${field.field_name}`] || '').toString().trim()
+          newStructured[key] = {
+            label: field.field_label,
+            type: field.field_type,
+            value
+          }
+        })
+      }
+
       // Update the submission
       const { data, error } = await supabase
         .from('submissions')
         .update({ 
           submission_url: submissionUrl,
+          submission_data: newStructured,
           updated_at: new Date().toISOString()
         })
         .eq('id', Number(submissionId))
@@ -312,24 +348,6 @@ export default function EditSubmissionPage() {
         <h1 className="text-2xl font-bold">Edit Submission</h1>
       </div>
 
-      {/* AI Review Notification */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <div className="text-blue-600 mt-1">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-medium text-blue-900 mb-1">AI Review Will Be Updated</h3>
-              <p className="text-sm text-blue-700">
-                When you save your changes, your submission will be automatically re-reviewed by our AI system. 
-                This ensures that any improvements you make are reflected in your AI score and review.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Task Info Card */}
       <Card className="mb-6">
         <CardHeader>
@@ -374,7 +392,11 @@ export default function EditSubmissionPage() {
             <div className="flex items-center gap-2 text-orange-800">
               <Clock className="h-4 w-4" />
               <span className="text-sm font-medium">
-                Deadline: {new Date(task.deadline).toLocaleDateString()} at {new Date(task.deadline).toLocaleTimeString()}
+                {(() => {
+                  const d = new Date(task.deadline)
+                  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
+                  return `Deadline: ${end.toLocaleDateString()} at 23:59`
+                })()}
               </span>
             </div>
           </CardContent>

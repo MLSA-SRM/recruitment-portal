@@ -1,8 +1,9 @@
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai'
+import { GoogleGenerativeAI, GenerativeModel, SchemaType } from '@google/generative-ai'
 
 export type ReviewResult = {
   score: number
   review: string
+  recommendation: 'shortlist' | 'reject' | 'neutral'
 }
 
 export function getGeminiModel(modelName: string = 'gemini-2.0-flash'): GenerativeModel {
@@ -12,13 +13,71 @@ export function getGeminiModel(modelName: string = 'gemini-2.0-flash'): Generati
   return genAI.getGenerativeModel({ model: modelName })
 }
 
+/**
+ * Generate AI review using structured output to prevent parsing issues
+ */
+export async function generateStructuredReview(
+  model: GenerativeModel, 
+  prompt: string
+): Promise<ReviewResult> {
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: 800,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            score: {
+              type: SchemaType.INTEGER,
+              description: 'Score from 0 to 1000'
+            },
+            review: {
+              type: SchemaType.STRING,
+              description: 'Detailed review in markdown format'
+            },
+            recommendation: {
+              type: SchemaType.STRING,
+              format: 'enum',
+              enum: ['shortlist', 'reject'],
+              description: 'Recommendation: shortlist for strong candidates, reject for weak candidates'
+            }
+          },
+          required: ['score', 'review', 'recommendation']
+        }
+      }
+    })
+    
+    const responseText = result.response.text()
+    const parsed = JSON.parse(responseText)
+    
+    // Validate the response structure
+    if (typeof parsed.score !== 'number' || typeof parsed.review !== 'string' || !['shortlist', 'reject'].includes(parsed.recommendation)) {
+      throw new Error('Invalid response structure: missing score, review, or invalid recommendation')
+    }
+    
+    if (parsed.score < 0 || parsed.score > 1000) {
+      throw new Error('Invalid score range: must be 0-1000')
+    }
+    
+    if (parsed.review.trim().length === 0) {
+      throw new Error('Review text is empty')
+    }
+    
+    return parsed
+  } catch (error) {
+    console.error('Structured review generation failed:', error)
+    throw error
+  }
+}
+
 export const PROMPTS = {
   tech_first_year: (codeBundle: string) => `You are an expert, unbiased code reviewer for a university tech club evaluating a FIRST-YEAR student's technical task.
 
-Return ONLY a JSON object with exactly these fields:
-{"score": <integer 0-1000>, "review": "<markdown>"}
+Provide a score from 0-1000 and a detailed review in markdown format.
 
-In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
 
 # Code Review - <Short Title>
 
@@ -46,17 +105,15 @@ In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep 
 CONSTRAINTS:
 - Keep review concise (≈300-500 words)
 - Use clear headings, bullets, and the small table above
-- No code fences around the JSON; JSON only
 
 STUDENT CODE:
 ${codeBundle}`,
   
   tech_second_year: (codeBundle: string) => `You are an expert, unbiased code reviewer for a university tech club evaluating a SECOND-YEAR student's technical task.
 
-Return ONLY a JSON object with exactly these fields:
-{"score": <integer 0-1000>, "review": "<markdown>"}
+Provide a score from 0-1000 and a detailed review in markdown format.
 
-In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
 
 # Code Review - <Short Title>
 
@@ -84,17 +141,15 @@ In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep 
 CONSTRAINTS:
 - Keep review concise (≈300-500 words)
 - Use clear headings, bullets, and the small table above
-- No code fences around the JSON; JSON only
 
 STUDENT CODE:
 ${codeBundle}`,
   
   corporate: (textContent: string) => `You are reviewing a CORPORATE recruitment task submission (proposal/email/plan).
 
-Return ONLY a JSON object with exactly these fields:
-{"score": <integer 0-1000>, "review": "<markdown>"}
+Provide a score from 0-1000 and a detailed review in markdown format.
 
-In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
 
 # Review - <Short Title>
 
@@ -121,7 +176,6 @@ In review (markdown), FOLLOW THIS COMPACT STRUCTURE for admin readability (keep 
 CONSTRAINTS:
 - Keep review concise (≈300-500 words)
 - Use clear headings, bullets, and the small table above
-- No code fences around the JSON; JSON only
 
 SUBMISSION CONTENT:
 ${textContent}`
@@ -143,14 +197,17 @@ export async function parseGeminiJsonResponse(raw: string): Promise<ReviewResult
       throw new Error('No JSON content found in response')
     }
     
-    const jsonText = cleanedText.slice(jsonStart, jsonEnd)
+    let jsonText = cleanedText.slice(jsonStart, jsonEnd)
     console.log('Extracted JSON text:', jsonText)
+    
+    // Sanitize control characters that can break JSON parsing
+    jsonText = sanitizeJsonString(jsonText)
     
     const parsed = JSON.parse(jsonText)
     
     // Validate the response structure
-    if (typeof parsed.score !== 'number' || typeof parsed.review !== 'string') {
-      throw new Error('Invalid response structure: missing score or review')
+    if (typeof parsed.score !== 'number' || typeof parsed.review !== 'string' || !['shortlist', 'reject'].includes(parsed.recommendation)) {
+      throw new Error('Invalid response structure: missing score, review, or invalid recommendation')
     }
     
     if (parsed.score < 0 || parsed.score > 1000) {
@@ -182,9 +239,34 @@ The AI system provided a response that could not be properly parsed. This usuall
 ${raw.substring(0, 500)}${raw.length > 500 ? '...' : ''}
 \`\`\`
 
-Please contact support if you believe this is an error.`
+Please contact support if you believe this is an error.`,
+      recommendation: 'neutral' as const
     }
   }
+}
+
+/**
+ * Sanitizes JSON string by removing or escaping problematic control characters
+ */
+function sanitizeJsonString(jsonString: string): string {
+  // Replace problematic control characters with safe alternatives
+  return jsonString
+    // Replace unescaped newlines in string values with \\n
+    .replace(/(?<!\\)"(?:[^"\\]|\\.)*"/g, (match) => {
+      return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+    })
+    // Remove any remaining control characters that might break JSON
+    .replace(/[\x00-\x1F\x7F]/g, (char) => {
+      const code = char.charCodeAt(0)
+      switch (code) {
+        case 8: return '\\b'  // backspace
+        case 9: return '\\t'  // tab
+        case 10: return '\\n' // newline
+        case 12: return '\\f' // form feed
+        case 13: return '\\r' // carriage return
+        default: return '' // remove other control characters
+      }
+    })
 }
 
 

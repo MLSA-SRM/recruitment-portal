@@ -44,34 +44,13 @@ export default async function ApplyPage() {
   }
 
   // Get tasks filtered by user's exact domain, subdomain, and year
-  let { data: tasks } = await supabase
+  const { data: tasks } = await supabase
     .from('tasks')
     .select('*')
     .eq('domain', profile.domain)
     .eq('subdomain', profile.subdomain)
     .eq('target_year', profile.year)
     .order('created_at', { ascending: false })
-
-  // If no exact match found, show tasks for user's domain and year (without subdomain restriction)
-  if (!tasks || tasks.length === 0) {
-    const { data: fallbackTasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('domain', profile.domain)
-      .eq('target_year', profile.year)
-      .order('created_at', { ascending: false })
-    tasks = fallbackTasks
-  }
-
-  // If still no tasks found, show all tasks for the user's year
-  if (!tasks || tasks.length === 0) {
-    const { data: yearTasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('target_year', profile.year)
-      .order('created_at', { ascending: false })
-    tasks = yearTasks
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -81,9 +60,9 @@ export default async function ApplyPage() {
             Available Positions for {profile.domain} - {profile.subdomain}
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
-            Showing tasks matching your {profile.domain} domain, {profile.subdomain} subdomain, and {profile.year === 1 ? '1st' : '2nd'} year level. 
-            {tasks && tasks.length > 0 && (tasks[0]?.domain !== profile.domain || tasks[0]?.subdomain !== profile.subdomain) && 
-              ` No exact matches found, showing related tasks.`
+            Showing tasks matching your {profile.domain} domain, {profile.subdomain} subdomain, and {profile.year === 1 ? '1st' : profile.year === 2 ? '2nd' : '3rd'} year level.
+            {(!tasks || tasks.length === 0) && 
+              ` No tasks are currently available for your specific profile. Check back later for new opportunities.`
             }
           </p>
         </div>
