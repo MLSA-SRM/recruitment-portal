@@ -1,13 +1,13 @@
 import { createSupabaseServer } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { updateSubmissionStatus } from '@/app/actions'
+import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/actions'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { AdminLayout } from '@/components/admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award } from 'lucide-react'
+import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award, RefreshCw } from 'lucide-react'
 
 type SubmissionFieldInfo = {
   value: unknown
@@ -293,7 +293,18 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">AI Review</CardTitle>
-                <div>
+                <div className="flex items-center gap-3">
+                  <form action={async () => { 'use server'; await triggerAIReviewForSubmission(Number(id)) }}>
+                    <Button 
+                      type="submit" 
+                      size="sm" 
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Trigger AI Review
+                    </Button>
+                  </form>
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Award className="h-3 w-3" /> Score: {submission?.ai_score ?? '-'} / 1000
                   </Badge>

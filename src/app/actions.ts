@@ -7,6 +7,7 @@ import * as cheerio from 'cheerio'
 import Papa from 'papaparse'
 import { z } from 'zod'
 import env from '@/env'
+import { aiRateLimiter, shouldDelayAIReview, getAIReviewWaitTime } from '@/lib/rate-limiter'
 
 type Status = 'pending' | 'shortlisted' | 'rejected'
 type ReviewContext = 'new' | 'edit'
@@ -410,7 +411,9 @@ export async function handleSubmission(formData: FormData) {
   console.log('Submission created with ID:', submission.id)
 
   ;(async () => {
-    await performAIReview({ supabase, submissionId: submission!.id, taskId, userId, submissionUrl: '', submissionData, context: 'new' })
+    await aiRateLimiter.execute(async () => {
+      await performAIReview({ supabase, submissionId: submission!.id, taskId, userId, submissionUrl: '', submissionData, context: 'new' })
+    })
   })()
 
   return { ok: true }
@@ -757,7 +760,9 @@ export async function updateSubmission(formData: FormData) {
   console.log('Submission updated, triggering AI review for submission ID:', submissionId)
   
   ;(async () => {
-    await performAIReview({ supabase, submissionId, taskId, userId, submissionUrl: '', submissionData, context: 'edit' })
+    await aiRateLimiter.execute(async () => {
+      await performAIReview({ supabase, submissionId, taskId, userId, submissionUrl: '', submissionData, context: 'edit' })
+    })
   })()
 
   return { ok: true }
@@ -851,6 +856,20 @@ export async function deleteTask(taskId: number) {
   return { ok: true }
 }
 
+async function isCurrentUserAdmin(): Promise<boolean> {
+  const supabase = await createSupabaseServer()
+  const userId = await getCurrentUserId()
+  if (!userId) return false
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', userId)
+    .single()
+
+  return profile?.is_admin === true
+}
+
 export async function triggerAIReviewForSubmission(submissionId: number) {
   const supabase = await createSupabaseServer()
   const userId = await getCurrentUserId()
@@ -863,22 +882,26 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
     .single()
 
   if (error || !row) throw new Error('Submission not found')
-  if (row.applicant_id !== userId) {
-    // Allow self-trigger only; admins could be supported later
+  
+  // Allow submission owner or admin to trigger review
+  const isAdmin = await isCurrentUserAdmin()
+  if (row.applicant_id !== userId && !isAdmin) {
     throw new Error('Access denied')
   }
 
-  // Fire-and-forget: schedule AI review without blocking the caller
+  // Fire-and-forget: schedule AI review with rate limiting
   setTimeout(async () => {
     try {
-      await performAIReview({
-        supabase,
-        submissionId: row.id,
-        taskId: row.task_id as number,
-        userId: row.applicant_id as string,
-        submissionUrl: '',
-        submissionData: row.submission_data as Record<string, unknown>,
-        context: 'edit'
+      await aiRateLimiter.execute(async () => {
+        await performAIReview({
+          supabase,
+          submissionId: row.id,
+          taskId: row.task_id as number,
+          userId: row.applicant_id as string,
+          submissionUrl: '',
+          submissionData: row.submission_data as Record<string, unknown>,
+          context: 'edit'
+        })
       })
     } catch (e) {
       console.error('[AI][trigger] Background review failed:', e)

@@ -21,6 +21,13 @@ export default function SignInPage() {
     setLoading(true)
     setMessage('')
 
+    // Validate email domain
+    if (!email.endsWith('@srmist.edu.in')) {
+      setMessage('Only SRMIST email addresses (@srmist.edu.in) are allowed for sign in.')
+      setLoading(false)
+      return
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -71,12 +78,15 @@ export default function SignInPage() {
           <form onSubmit={handleSignIn} className="space-y-4">
             <Input
               type="email"
-              placeholder="Email"
+              placeholder="email@srmist.edu.in"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="h-12 text-base"
             />
+            <p className="text-xs text-gray-500 -mt-2">
+              Only SRMIST email addresses are allowed
+            </p>
             
             <Input
               type="password"

@@ -217,7 +217,7 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-gray-500" />
                 <span className="text-sm text-gray-600">
-                  <strong>Target Year:</strong> {task.target_year}st Year
+                  <strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year
                 </span>
               </div>
             </div>

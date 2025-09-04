@@ -122,7 +122,7 @@ export default async function DashboardPage() {
                         </div>
                         <div>
                           <div className="text-[11px] text-gray-500">Target Year</div>
-                          <div className="text-sm font-medium text-gray-900">{task?.target_year ? `${task.target_year}${task.target_year === 1 ? 'st' : task.target_year === 2 ? 'nd' : 'rd'} Year` : '—'}</div>
+                          <div className="text-sm font-medium text-gray-900">{task?.target_year ? `${task.target_year === 1 ? '1st' : '2nd'} Year` : '—'}</div>
                         </div>
                       </div>
 

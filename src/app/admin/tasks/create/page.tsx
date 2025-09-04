@@ -407,8 +407,6 @@ export default function CreateTaskPage() {
                 <option value="">Select Year</option>
                 <option value="1">1st Year</option>
                 <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">4th Year</option>
               </select>
               {errors.target_year && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
@@ -535,7 +533,7 @@ export default function CreateTaskPage() {
                     )}
 
                     {formData.target_year && (
-                      <Badge variant="secondary">{formData.target_year}st Year</Badge>
+                      <Badge variant="secondary">{formData.target_year === '1' ? '1st' : '2nd'} Year</Badge>
                     )}
                   </div>
                   {formData.deadline && (

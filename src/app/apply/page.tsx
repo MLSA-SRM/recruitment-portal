@@ -60,7 +60,7 @@ export default async function ApplyPage() {
             Available Positions for {profile.domain} - {profile.subdomain}
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
-            Showing tasks matching your {profile.domain} domain, {profile.subdomain} subdomain, and {profile.year === 1 ? '1st' : profile.year === 2 ? '2nd' : '3rd'} year level.
+            Showing tasks matching your {profile.domain} domain, {profile.subdomain} subdomain, and {profile.year === 1 ? '1st' : '2nd'} year level.
             {(!tasks || tasks.length === 0) && 
               ` No tasks are currently available for your specific profile. Check back later for new opportunities.`
             }

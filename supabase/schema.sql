@@ -19,7 +19,7 @@ create table if not exists public.tasks (
   description text,
   domain text not null, -- 'Technical', 'Creatives', 'Corporate'
   subdomain text not null, -- Structured subdomain from predefined list
-  target_year int not null, -- 1, 2, or 3 for both
+  target_year int not null, -- 1 or 2 for both
   deadline timestamptz,
   created_by uuid references public.profiles(id)
 );

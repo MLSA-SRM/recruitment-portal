@@ -71,7 +71,12 @@ export default function ProfileSetupPage() {
         })
 
       if (error) {
-        setMessage(error.message)
+        // Handle specific error cases with user-friendly messages
+        if (error.code === '23505' && error.message.includes('profiles_ra_number_key')) {
+          setMessage('RA Number already exists. Please use a different RA Number.')
+        } else {
+          setMessage(error.message)
+        }
       } else {
         router.push('/dashboard')
         router.refresh()
@@ -133,42 +138,26 @@ export default function ProfileSetupPage() {
 
           <div className="space-y-3">
             <label className="text-sm font-semibold text-gray-700">Department *</label>
-            <select
+            <Input
               name="department"
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Computer Science, Information Technology, Electronics"
+              className="h-12 text-base"
               required
-            >
-              <option value="">Select Department</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Information Technology">Information Technology</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Civil">Civil</option>
-              <option value="Biotechnology">Biotechnology</option>
-              <option value="Chemical">Chemical</option>
-            </select>
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Branch *</label>
-            <select
+            <Input
               name="branch"
               value={formData.branch}
               onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Computer Science, Information Technology, Electronics"
+              className="h-12 text-base"
               required
-            >
-              <option value="">Select Branch</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Information Technology">Information Technology</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Civil">Civil</option>
-              <option value="Biotechnology">Biotechnology</option>
-              <option value="Chemical">Chemical</option>
-            </select>
+            />
           </div>
 
           <div className="space-y-2">

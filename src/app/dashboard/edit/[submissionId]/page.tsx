@@ -367,7 +367,7 @@ export default function EditSubmissionPage() {
               </div>
             )}
             <div>
-              <strong>Target Year:</strong> {task.target_year}st Year
+              <strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year
             </div>
             <div>
               <strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}

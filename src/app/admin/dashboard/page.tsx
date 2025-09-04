@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { updateSubmissionStatus } from '@/app/actions'
+import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/actions'
 import { revalidatePath } from 'next/cache'
 import { AdminLayout } from '@/components/admin-layout'
+import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
 import { 
   Users, 
   FileText, 
@@ -17,10 +18,11 @@ import {
   TrendingUp,
   BarChart3,
   Plus,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react'
 
-type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string; minScore?: string; maxScore?: string; sort?: string }
+type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string; minScore?: string; maxScore?: string; sort?: string; page?: string; limit?: string }
 
 type SubmissionWithJoins = {
   id: number
@@ -39,12 +41,60 @@ type SubmissionWithJoins = {
   } | null
 }
 
-async function getSubmissions(filters: Filters): Promise<SubmissionWithJoins[]> {
+async function getSubmissions(filters: Filters): Promise<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number }> {
+  const page = Number(filters.page) || 1
+  const limit = Number(filters.limit) || 50 // Default to 50 items per page
+  const offset = (page - 1) * limit
+
+  // Create cache key from filters
+  const cacheKey = CacheKeys.adminSubmissions(JSON.stringify({ ...filters, page, limit }))
+  
+  // Try to get from cache first
+  const cached = cache.get<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number }>(cacheKey)
+  if (cached) {
+    return cached
+  }
+
   const supabase = await createSupabaseServer()
-  const { data } = await supabase
+
+  // Build query with filters
+  let query = supabase
     .from('submissions')
-    .select('id, submission_url, status, ai_score, ai_recommendation, profiles(name, ra_number, year), tasks(domain, subdomain)')
+    .select('id, submission_url, status, ai_score, ai_recommendation, profiles(name, ra_number, year), tasks(domain, subdomain)', { count: 'exact' })
+
+  // Apply filters at database level for better performance
+  if (filters.status) {
+    query = query.eq('status', filters.status)
+  }
+  if (filters.minScore) {
+    query = query.gte('ai_score', Number(filters.minScore))
+  }
+  if (filters.maxScore) {
+    query = query.lte('ai_score', Number(filters.maxScore))
+  }
+
+  // Apply sorting
+  if (filters.sort === 'score_desc') {
+    query = query.order('ai_score', { ascending: false, nullsFirst: false })
+  } else if (filters.sort === 'score_asc') {
+    query = query.order('ai_score', { ascending: true, nullsFirst: false })
+  } else {
+    query = query.order('created_at', { ascending: false })
+  }
+
+  // Apply pagination
+  query = query.range(offset, offset + limit - 1)
+
+  const { data, count, error } = await query
+
+  if (error) {
+    console.error('Error fetching submissions:', error)
+    return { submissions: [], total: 0, page: 1, totalPages: 0 }
+  }
+
   let rows = (data || []) as unknown as SubmissionWithJoins[]
+
+  // Apply client-side filters that can't be done at DB level
   if (filters.q) {
     const q = filters.q.toLowerCase()
     rows = rows.filter((row) => {
@@ -52,28 +102,25 @@ async function getSubmissions(filters: Filters): Promise<SubmissionWithJoins[]> 
       return hay.includes(q)
     })
   }
-  if (filters.year) rows = rows.filter((r) => String(r.profiles?.year ?? '') === String(filters.year))
-  if (filters.domain) rows = rows.filter((r) => (r.tasks?.domain ?? '') === filters.domain)
-  if (filters.subdomain) rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
-  if (filters.status) rows = rows.filter((r) => (r.status ?? '') === filters.status)
-  const min = filters.minScore ? Number(filters.minScore) : undefined
-  const max = filters.maxScore ? Number(filters.maxScore) : undefined
-  if (typeof min === 'number' && !Number.isNaN(min)) rows = rows.filter((r) => (r.ai_score ?? -1) >= min)
-  if (typeof max === 'number' && !Number.isNaN(max)) rows = rows.filter((r) => (r.ai_score ?? 1000000) <= max)
-  if (filters.sort === 'score_desc') {
-    rows = rows.sort((a, b) => {
-      const av = a.ai_score ?? -1
-      const bv = b.ai_score ?? -1
-      return bv - av
-    })
-  } else if (filters.sort === 'score_asc') {
-    rows = rows.sort((a, b) => {
-      const av = a.ai_score ?? 1000000
-      const bv = b.ai_score ?? 1000000
-      return av - bv
-    })
+  if (filters.year) {
+    rows = rows.filter((r) => String(r.profiles?.year ?? '') === String(filters.year))
   }
-  return rows
+  if (filters.domain) {
+    rows = rows.filter((r) => (r.tasks?.domain ?? '') === filters.domain)
+  }
+  if (filters.subdomain) {
+    rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
+  }
+
+  const total = count || 0
+  const totalPages = Math.ceil(total / limit)
+
+  const result = { submissions: rows, total, page, totalPages }
+  
+  // Cache the result for 2 minutes
+  cache.set(cacheKey, result, CacheTTL.SHORT * 2)
+
+  return result
 }
 
 function rowClass(status: string) {
@@ -84,7 +131,7 @@ function rowClass(status: string) {
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<Filters> }) {
   const resolvedSearchParams = await searchParams
-  const submissions = await getSubmissions(resolvedSearchParams as Filters)
+  const { submissions, total, page, totalPages } = await getSubmissions(resolvedSearchParams as Filters)
   
   // Get analytics data
   const supabase = await createSupabaseServer()
@@ -245,7 +292,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             <DropdownMenuItem asChild><Link href={hrefWith('year')}>Any</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={hrefWith('year', '1')}>1</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={hrefWith('year', '2')}>2</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('year', '3')}>3</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
@@ -357,7 +403,18 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                     <Link href={`/admin/submission/${s.id}`}>
                       <Button size="sm" variant="outline">Review</Button>
                     </Link>
-                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); revalidatePath('/admin/dashboard') }}>
+                    <form action={async () => { 'use server'; await triggerAIReviewForSubmission(s.id as number); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
+                      <Button 
+                        type="submit" 
+                        size="sm" 
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        AI
+                      </Button>
+                    </form>
+                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
                       <Button 
                         type="submit" 
                         size="sm" 
@@ -371,7 +428,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                         Accept
                       </Button>
                     </form>
-                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); revalidatePath('/admin/dashboard') }}>
+                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
                       <Button 
                         type="submit" 
                         variant="destructive" 
@@ -393,6 +450,30 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 px-4">
+          <div className="text-sm text-gray-700">
+            Showing {((page - 1) * 50) + 1} to {Math.min(page * 50, total)} of {total} results
+          </div>
+          <div className="flex items-center space-x-2">
+            {page > 1 && (
+              <Link href={`/admin/dashboard?${new URLSearchParams({ ...resolvedSearchParams, page: String(page - 1) }).toString()}`}>
+                <Button variant="outline" size="sm">Previous</Button>
+              </Link>
+            )}
+            <span className="text-sm text-gray-700">
+              Page {page} of {totalPages}
+            </span>
+            {page < totalPages && (
+              <Link href={`/admin/dashboard?${new URLSearchParams({ ...resolvedSearchParams, page: String(page + 1) }).toString()}`}>
+                <Button variant="outline" size="sm">Next</Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
       </div>
     </AdminLayout>
   )

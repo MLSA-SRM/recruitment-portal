@@ -228,8 +228,6 @@ export default function TasksPage() {
             <option value="">All Years</option>
             <option value="1">1st Year</option>
             <option value="2">2nd Year</option>
-            <option value="3">3rd Year</option>
-            <option value="4">4th Year</option>
           </select>
         </div>
       </div>
@@ -352,7 +350,7 @@ export default function TasksPage() {
                       )}
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Users className="h-4 w-4" />
-                        <span><strong>Target Year:</strong> {task.target_year}st Year</span>
+                        <span><strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
