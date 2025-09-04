@@ -18,10 +18,7 @@ const nextConfig: NextConfig = {
   },
   
   // Performance optimizations for high load
-  experimental: {
-    // Enable server components optimization
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
-  },
+  serverExternalPackages: ['@supabase/supabase-js'],
   
   // Compression and caching
   compress: true,
@@ -33,7 +30,6 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   
   // Build optimizations
-  swcMinify: true,
   
   // Headers for caching and security
   async headers() {

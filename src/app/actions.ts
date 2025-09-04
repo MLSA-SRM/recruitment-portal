@@ -7,7 +7,7 @@ import * as cheerio from 'cheerio'
 import Papa from 'papaparse'
 import { z } from 'zod'
 import env from '@/env'
-import { aiRateLimiter, shouldDelayAIReview, getAIReviewWaitTime } from '@/lib/rate-limiter'
+import { aiRateLimiter } from '@/lib/rate-limiter'
 
 type Status = 'pending' | 'shortlisted' | 'rejected'
 type ReviewContext = 'new' | 'edit'

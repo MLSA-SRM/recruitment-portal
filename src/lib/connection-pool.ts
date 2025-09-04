@@ -42,7 +42,7 @@ class ConnectionPool {
         const result = await Promise.race([
           operation(),
           this.timeoutPromise(this.config.connectionTimeout)
-        ])
+        ]) as T
         
         // Mark as healthy on successful operation
         this.isHealthy = true
@@ -69,7 +69,7 @@ class ConnectionPool {
     throw new Error(`${context} failed after ${this.config.retryAttempts} attempts: ${lastError?.message}`)
   }
 
-  private isConnectionError(error: any): boolean {
+  private isConnectionError(error: unknown): boolean {
     const connectionErrors = [
       'ECONNREFUSED',
       'ETIMEDOUT',
@@ -80,7 +80,7 @@ class ConnectionPool {
       'too many connections'
     ]
     
-    const errorMessage = error?.message?.toLowerCase() || ''
+    const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase()
     return connectionErrors.some(err => errorMessage.includes(err))
   }
 
