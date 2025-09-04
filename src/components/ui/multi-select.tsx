@@ -131,15 +131,15 @@ export default function MultiSelect({
               e.stopPropagation()
               clearAll()
             }}
-            className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 p-1 rounded-full hover:bg-gray-100"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </button>
         )}
 
         {/* Dropdown arrow */}
         <ChevronDown className={cn(
-          "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform",
+          "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform pointer-events-none",
           isOpen && "rotate-180"
         )} />
       </div>
