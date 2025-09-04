@@ -261,30 +261,20 @@ export default function TaskCard({ task }: TaskCardProps) {
               {task.deliverables && (
                 <p className="mt-1"><span className="font-medium">Deliverables:</span> {task.deliverables.length > 120 ? `${task.deliverables.slice(0, 120)}…` : task.deliverables}</p>
               )}
-              {((task.requirements?.length || 0) > 120 || (task.deliverables?.length || 0) > 120) && (
-                <div className="mt-2">
-                  <Link href={`/apply/task/${task.id}`}>
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Eye className="h-3 w-3 mr-1" />
-                      View Full Details
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <div className="mt-2">
+                <Link href={`/apply/task/${task.id}`}>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Eye className="h-3 w-3 mr-1" />
+                    View Full Details
+                  </Button>
+                </Link>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="pt-2 space-y-2">
+        <div className="pt-2">
           {getActionButton()}
-          
-          {/* Always show View Details button */}
-          <Link href={`/apply/task/${task.id}`}>
-            <Button variant="outline" size="sm" className="w-full">
-              <Eye className="h-3 w-3 mr-1" />
-              View Details
-            </Button>
-          </Link>
         </div>
 
         <div className="pt-1">
