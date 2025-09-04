@@ -317,7 +317,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             <DropdownMenuLabel className="text-xs text-gray-500">Technical</DropdownMenuLabel>
             <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Web Development: Frontend')}>Web Development: Frontend</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Web Development: Backend')}>Web Development: Backend</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Web Development: Full Stack')}>Web Development: Full Stack</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'AI/ML')}>AI/ML</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs text-gray-500">Corporate</DropdownMenuLabel>

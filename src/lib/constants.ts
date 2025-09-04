@@ -2,7 +2,6 @@ export const DOMAIN_SUBDOMAINS = {
   Technical: [
     'Web Development: Frontend',
     'Web Development: Backend', 
-    'Web Development: Full Stack',
     'AI/ML'
   ],
   Corporate: [
