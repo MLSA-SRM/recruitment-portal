@@ -99,7 +99,7 @@ export function Navigation() {
           </Link>
           
           {/* Navigation Links */}
-          <div className={`hidden md:flex items-center space-x-2 ${!user ? 'ml-auto' : ''}`}>
+          <div className="hidden md:flex items-center space-x-2 ml-auto">
             {!user ? (
               // Not authenticated - show login/signup
               <>
