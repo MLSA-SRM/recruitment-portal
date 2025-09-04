@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface MultiSelectOption {
@@ -79,12 +79,6 @@ export default function MultiSelect({
     onChange(value.filter(v => v !== optionValue))
   }
 
-  // Clear all selections
-  const clearAll = () => {
-    if (disabled) return
-    onChange([])
-  }
-
   return (
     <div className={cn("relative", className)} ref={dropdownRef}>
       {/* Selected options display */}
@@ -123,25 +117,6 @@ export default function MultiSelect({
           )}
         </div>
         
-        {/* Clear all button */}
-        {selectedOptions.length > 0 && !disabled && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              clearAll()
-            }}
-            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-
-        {/* Dropdown arrow */}
-        <ChevronDown className={cn(
-          "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform pointer-events-none",
-          isOpen && "rotate-180"
-        )} />
       </div>
 
       {/* Dropdown menu */}
