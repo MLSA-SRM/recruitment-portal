@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import MultiSelect from '@/components/ui/multi-select'
 import { useRouter } from 'next/navigation'
 import { DOMAIN_SUBDOMAINS, type Domain } from '@/lib/constants'
 
@@ -15,8 +16,10 @@ export default function ProfileSetupPage() {
     department: '',
     branch: '',
     year: '',
-    domain: '',
-    subdomain: ''
+    domain: '', // Legacy field
+    subdomain: '', // Legacy field
+    domains: [] as string[], // New field for multiple domains
+    subdomains: [] as string[] // New field for multiple subdomains
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -52,6 +55,19 @@ export default function ProfileSetupPage() {
     setLoading(true)
     setMessage('')
 
+    // Validate that at least one domain and subdomain is selected
+    if (formData.domains.length === 0) {
+      setMessage('Please select at least one domain')
+      setLoading(false)
+      return
+    }
+
+    if (formData.subdomains.length === 0) {
+      setMessage('Please select at least one subdomain')
+      setLoading(false)
+      return
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
@@ -66,8 +82,10 @@ export default function ProfileSetupPage() {
           department: formData.department,
           branch: formData.branch,
           year: formData.year ? parseInt(formData.year) : null,
-          domain: formData.domain,
-          subdomain: formData.subdomain
+          domain: formData.domains[0] || formData.domain, // Legacy field - use first domain
+          subdomain: formData.subdomains[0] || formData.subdomain, // Legacy field - use first subdomain
+          domains: formData.domains.length > 0 ? formData.domains : null,
+          subdomains: formData.subdomains.length > 0 ? formData.subdomains : null
         })
 
       if (error) {
@@ -176,43 +194,55 @@ export default function ProfileSetupPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Domain *</label>
-            <select
-              name="domain"
-              value={formData.domain}
-              onChange={(e) => {
-                const domain = e.target.value as Domain
+            <label className="text-sm font-medium">Domains *</label>
+            <MultiSelect
+              options={Object.keys(DOMAIN_SUBDOMAINS).map(domain => ({
+                value: domain,
+                label: domain
+              }))}
+              value={formData.domains}
+              onChange={(domains) => {
+                // Filter subdomains to only include those from selected domains
+                const availableSubdomains = domains.flatMap(domain => 
+                  DOMAIN_SUBDOMAINS[domain as Domain] || []
+                )
+                const filteredSubdomains = formData.subdomains.filter(subdomain =>
+                  availableSubdomains.includes(subdomain)
+                )
+                
                 setFormData({ 
                   ...formData, 
-                  domain, 
-                  subdomain: '' // Reset subdomain when domain changes
+                  domains,
+                  subdomains: filteredSubdomains
                 })
               }}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select Domain</option>
-              {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
-                <option key={domain} value={domain}>{domain}</option>
-              ))}
-            </select>
+              placeholder="Select one or more domains..."
+              maxSelections={3}
+            />
+            <p className="text-xs text-gray-500">You can select up to 3 domains</p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Subdomain *</label>
-            <select
-              name="subdomain"
-              value={formData.subdomain}
-              onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              disabled={!formData.domain}
-            >
-              <option value="">Select Subdomain</option>
-              {formData.domain && DOMAIN_SUBDOMAINS[formData.domain as Domain]?.map((subdomain) => (
-                <option key={subdomain} value={subdomain}>{subdomain}</option>
-              ))}
-            </select>
+            <label className="text-sm font-medium">Subdomains *</label>
+            <MultiSelect
+              options={formData.domains.flatMap(domain => 
+                DOMAIN_SUBDOMAINS[domain as Domain]?.map(subdomain => ({
+                  value: subdomain,
+                  label: subdomain
+                })) || []
+              )}
+              value={formData.subdomains}
+              onChange={(subdomains) => setFormData({ ...formData, subdomains })}
+              placeholder="Select subdomains from your chosen domains..."
+              disabled={formData.domains.length === 0}
+              maxSelections={5}
+            />
+            <p className="text-xs text-gray-500">
+              {formData.domains.length === 0 
+                ? "Please select domains first" 
+                : "You can select up to 5 subdomains from your chosen domains"
+              }
+            </p>
           </div>
 
 

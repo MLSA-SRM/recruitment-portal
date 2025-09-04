@@ -4,8 +4,10 @@ export interface Profile {
   id: string
   name: string
   email: string
-  domain: string
-  subdomain: string
+  domain: string // Legacy field - will be deprecated
+  subdomain: string // Legacy field - will be deprecated
+  domains: string[] // New field for multiple domains
+  subdomains: string[] // New field for multiple subdomains
   target_year: number
   is_admin: boolean
   created_at: string
