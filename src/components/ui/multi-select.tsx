@@ -131,9 +131,9 @@ export default function MultiSelect({
               e.stopPropagation()
               clearAll()
             }}
-            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 p-1 rounded-full hover:bg-gray-100"
+            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100"
           >
-            <X className="h-3 w-3" />
+            <X className="h-4 w-4" />
           </button>
         )}
 
