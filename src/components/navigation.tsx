@@ -100,34 +100,11 @@ export function Navigation() {
             </Link>
           </div>
           
-          {/* Navigation Links */}
+          {/* Navigation Links (center) */}
           <div className="hidden md:flex items-center space-x-1">
-            {!user ? (
-              // Not authenticated - show login/signup
-              <div className="flex items-center space-x-2 ml-auto">
-                <Link href="/auth/signin">
-                  <Button variant="ghost" size="sm" className="px-4">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button size="sm" className="px-4">
-                    Get Started
-                  </Button>
-                </Link>
-              </div>
-            ) : !profile ? (
-              // Authenticated but no profile - show profile setup
-              <div className="flex items-center space-x-2">
-                <Link href="/profile/setup">
-                  <Button size="sm" className="px-4">
-                    Complete Profile
-                  </Button>
-                </Link>
-                <Button variant="ghost" onClick={handleSignOut} size="sm" className="px-4">
-                  Sign Out
-                </Button>
-              </div>
+            {!user || !profile ? (
+              // For unauthenticated or incomplete profile, keep center empty to avoid layout shifts
+              <></>
             ) : (
               // Authenticated with profile - show appropriate navigation
               <div className="flex items-center space-x-1">
@@ -187,8 +164,34 @@ export function Navigation() {
             )}
           </div>
 
-          {/* User Menu / Mobile Menu */}
+          {/* User Menu / Mobile Menu (right) */}
           <div className="flex items-center space-x-2">
+            {!user && (
+              <div className="hidden md:flex items-center space-x-2">
+                <Link href="/auth/signin">
+                  <Button variant="ghost" size="sm" className="px-4">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button size="sm" className="px-4">
+                    Get Started
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {user && !profile && (
+              <div className="hidden md:flex items-center space-x-2">
+                <Link href="/profile/setup">
+                  <Button size="sm" className="px-4">
+                    Complete Profile
+                  </Button>
+                </Link>
+                <Button variant="ghost" onClick={handleSignOut} size="sm" className="px-4">
+                  Sign Out
+                </Button>
+              </div>
+            )}
             {user && profile && (
               <div className="hidden md:flex items-center space-x-3">
                 {/* User Avatar */}
