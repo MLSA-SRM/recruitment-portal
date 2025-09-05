@@ -1,63 +1,33 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { env } from '@/env'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
+// Optimized browser client with proper configuration
 export function createSupabaseClient() {
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+  return createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    auth: {
+      // Enable automatic token refresh
+      autoRefreshToken: true,
+      // Persist session across browser sessions
+      persistSession: true,
+      // Detect session from URL (for OAuth callbacks)
+      detectSessionInUrl: true,
+      // Enable multi-tab synchronization
+      multiTab: true,
+    },
+    // Enable real-time features
+    realtime: {
+      // Enable real-time subscriptions
+      enabled: true,
+      // Configure heartbeat interval
+      heartbeatIntervalMs: 30000,
+    },
+    // Global configuration
+    global: {
+      // Use native fetch for better performance
+      fetch: (...args) => fetch(...args),
+    },
+  })
 }
 
-export type Database = {
-  public: {
-    Tables: {
-      profiles: {
-        Row: {
-          id: string
-          name: string | null
-          ra_number: string | null
-          phone_number: number | null
-          department: string | null
-          branch: string | null
-          year: number | null
-          domain: string | null
-          subdomain: string | null
-          is_admin: boolean
-        }
-        Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { id: string }
-        Update: Partial<Database['public']['Tables']['profiles']['Row']>
-      }
-      tasks: {
-        Row: {
-          id: number
-          created_at: string | null
-          title: string
-          description: string | null
-          domain: string
-          subdomain: string | null
-          target_year: number
-          deadline?: string | null
-          estimated_duration?: string | null
-          requirements?: string | null
-          deliverables?: string | null
-          image_url?: string | null
-        }
-        Insert: Omit<Database['public']['Tables']['tasks']['Row'], 'id'>
-        Update: Partial<Database['public']['Tables']['tasks']['Row']>
-      }
-      submissions: {
-        Row: {
-          id: number
-          created_at: string | null
-          applicant_id: string | null
-          task_id: number | null
-          submission_url: string
-          status: 'pending' | 'shortlisted' | 'rejected'
-          ai_score: number | null
-          ai_review: string | null
-        }
-        Insert: Omit<Database['public']['Tables']['submissions']['Row'], 'id' | 'status'> & { status?: 'pending' | 'shortlisted' | 'rejected' }
-        Update: Partial<Database['public']['Tables']['submissions']['Row']>
-      }
-    }
-  }
-}
+// Re-export the comprehensive database types
+export type { Database } from './database.types'

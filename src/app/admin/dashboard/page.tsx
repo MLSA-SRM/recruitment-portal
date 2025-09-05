@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/actions'
 import { revalidatePath } from 'next/cache'
 import { AdminLayout } from '@/components/admin-layout'
@@ -123,11 +124,6 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
   return result
 }
 
-function rowClass(status: string) {
-  if (status === 'shortlisted') return 'bg-green-100'
-  if (status === 'rejected') return 'bg-red-100'
-  return ''
-}
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<Filters> }) {
   const resolvedSearchParams = await searchParams
@@ -184,94 +180,155 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Total Submissions</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <FileText className="h-4 w-4 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">{totalSubmissions?.length || 0}</div>
-            <p className="text-sm text-gray-500 mt-1">All time submissions</p>
+            <div className="text-3xl font-bold text-foreground">{totalSubmissions?.length || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">All time submissions</p>
+            <div className="mt-2 h-1 bg-muted rounded-full">
+              <div className="h-1 bg-blue-500 rounded-full" style={{ width: '100%' }} />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Pending Review</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Review</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
-            <p className="text-sm text-gray-500 mt-1">Awaiting AI review</p>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting AI review</p>
+            <div className="mt-2 h-1 bg-muted rounded-full">
+              <div 
+                className="h-1 bg-yellow-500 rounded-full transition-all duration-500" 
+                style={{ width: `${totalSubmissions?.length ? (pendingCount / totalSubmissions.length) * 100 : 0}%` }} 
+              />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Shortlisted</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Shortlisted</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{shortlistedCount}</div>
-            <p className="text-sm text-gray-500 mt-1">Selected candidates</p>
+            <p className="text-xs text-muted-foreground mt-1">Selected candidates</p>
+            <div className="mt-2 h-1 bg-muted rounded-full">
+              <div 
+                className="h-1 bg-green-500 rounded-full transition-all duration-500" 
+                style={{ width: `${totalSubmissions?.length ? (shortlistedCount / totalSubmissions.length) * 100 : 0}%` }} 
+              />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-900">Rejected</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+              <XCircle className="h-4 w-4 text-red-600" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{rejectedCount}</div>
-            <p className="text-sm text-gray-500 mt-1">Not selected</p>
+            <p className="text-xs text-muted-foreground mt-1">Not selected</p>
+            <div className="mt-2 h-1 bg-muted rounded-full">
+              <div 
+                className="h-1 bg-red-500 rounded-full transition-all duration-500" 
+                style={{ width: `${totalSubmissions?.length ? (rejectedCount / totalSubmissions.length) * 100 : 0}%` }} 
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl font-bold text-gray-900">
-              <Users className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                <Users className="h-4 w-4 text-purple-600" />
+              </div>
               User Statistics
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Total Users:</span>
-                <span className="text-lg font-bold text-gray-900">{totalProfiles?.length || 0}</span>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-sm font-medium text-muted-foreground">Total Users:</span>
+                </div>
+                <span className="text-xl font-bold text-foreground">{totalProfiles?.length || 0}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Total Tasks:</span>
-                <span className="text-lg font-bold text-gray-900">{totalTasks?.length || 0}</span>
+              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                  <span className="text-sm font-medium text-muted-foreground">Total Tasks:</span>
+                </div>
+                <span className="text-xl font-bold text-foreground">{totalTasks?.length || 0}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl font-bold text-gray-900">
-              <TrendingUp className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-orange-600" />
+              </div>
               Performance Metrics
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Success Rate:</span>
-                <span className="text-lg font-bold text-gray-900">
-                  {totalSubmissions?.length ? Math.round((shortlistedCount / totalSubmissions.length) * 100) : 0}%
-                </span>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                  <span className="text-sm font-medium text-muted-foreground">Success Rate:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-green-600">
+                    {totalSubmissions?.length ? Math.round((shortlistedCount / totalSubmissions.length) * 100) : 0}%
+                  </span>
+                  <div className="w-12 h-2 bg-muted rounded-full">
+                    <div 
+                      className="h-2 bg-green-500 rounded-full transition-all duration-500" 
+                      style={{ width: `${totalSubmissions?.length ? (shortlistedCount / totalSubmissions.length) * 100 : 0}%` }} 
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 font-medium">Avg AI Score:</span>
-                <span className="text-lg font-bold text-gray-900">
-                  {submissions.length ? Math.round(submissions.reduce((acc, s) => acc + (s.ai_score || 0), 0) / submissions.length) : 0}
-                </span>
+              <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-sm font-medium text-muted-foreground">Avg AI Score:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-blue-600">
+                    {submissions.length ? Math.round(submissions.reduce((acc, s) => acc + (s.ai_score || 0), 0) / submissions.length) : 0}
+                  </span>
+                  <div className="w-12 h-2 bg-muted rounded-full">
+                    <div 
+                      className="h-2 bg-blue-500 rounded-full transition-all duration-500" 
+                      style={{ width: `${submissions.length ? (submissions.reduce((acc, s) => acc + (s.ai_score || 0), 0) / submissions.length) / 10 : 0}%` }} 
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -369,86 +426,127 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </DropdownMenu>
         <Link href="/admin/export"><Button type="button">Export Shortlisted CSV</Button></Link>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="p-2">Applicant</th>
-              <th className="p-2">RA Number</th>
-              <th className="p-2">Year</th>
-              <th className="p-2">Domain</th>
-              <th className="p-2">Subdomain</th>
-              <th className="p-2">AI Score</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map((s: SubmissionWithJoins) => (
-              <tr key={s.id} className={`${rowClass(s.status)} border-b`}>
-                <td className="p-2">{s.profiles?.name}</td>
-                <td className="p-2">{s.profiles?.ra_number}</td>
-                <td className="p-2">{s.profiles?.year}</td>
-                <td className="p-2">{s.tasks?.domain}</td>
-                <td className="p-2">{s.tasks?.subdomain}</td>
-                <td className="p-2">{s.ai_score ?? '-'}</td>
-                <td className="p-2">
-                  <Badge variant={s.status === 'shortlisted' ? 'default' : s.status === 'rejected' ? 'destructive' : 'secondary'}>
-                    {s.status}
-                  </Badge>
-                </td>
-                <td className="p-2">
-                  <div className="flex gap-2">
-                    <Link href={`/admin/submission/${s.id}`}>
-                      <Button size="sm" variant="outline">Review</Button>
-                    </Link>
-                    <form action={async () => { 'use server'; await triggerAIReviewForSubmission(s.id as number); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                      <Button 
-                        type="submit" 
-                        size="sm" 
-                        variant="outline"
-                        className="flex items-center gap-1"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        AI
-                      </Button>
-                    </form>
-                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                      <Button 
-                        type="submit" 
-                        size="sm" 
-                        className={`relative ${
-                          s.ai_recommendation === 'shortlist'
-                            ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 animate-pulse shadow-lg' 
-                            : 'bg-green-600 hover:bg-green-700'
-                        }`}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" />
-                        Accept
-                      </Button>
-                    </form>
-                    <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                      <Button 
-                        type="submit" 
-                        variant="destructive" 
-                        size="sm" 
-                        className={`relative ${
-                          s.ai_recommendation === 'reject'
-                            ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 animate-pulse shadow-lg' 
-                            : 'bg-red-600 hover:bg-red-700'
-                        }`}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardContent className="px-6 py-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-semibold">Applicant</TableHead>
+                <TableHead className="font-semibold">RA Number</TableHead>
+                <TableHead className="font-semibold">Year</TableHead>
+                <TableHead className="font-semibold">Domain</TableHead>
+                <TableHead className="font-semibold">Subdomain</TableHead>
+                <TableHead className="font-semibold">AI Score</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {submissions.map((s: SubmissionWithJoins) => (
+                <TableRow 
+                  key={s.id} 
+                  className={`${
+                    s.status === 'shortlisted' ? 'bg-green-50 hover:bg-green-100' : 
+                    s.status === 'rejected' ? 'bg-red-50 hover:bg-red-100' : 
+                    'hover:bg-muted/50'
+                  } transition-colors`}
+                >
+                  <TableCell className="font-medium">{s.profiles?.name || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{s.profiles?.ra_number || '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {s.profiles?.year ? `${s.profiles.year}${s.profiles.year === 1 ? 'st' : s.profiles.year === 2 ? 'nd' : s.profiles.year === 3 ? 'rd' : 'th'} Year` : '—'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{s.tasks?.domain || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{s.tasks?.subdomain || '—'}</TableCell>
+                  <TableCell>
+                    {s.ai_score ? (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{s.ai_score}</span>
+                        <div className="w-16 bg-muted rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${
+                              s.ai_score >= 800 ? 'bg-green-500' :
+                              s.ai_score >= 600 ? 'bg-yellow-500' :
+                              s.ai_score >= 400 ? 'bg-orange-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${(s.ai_score / 1000) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={s.status === 'shortlisted' ? 'default' : s.status === 'rejected' ? 'destructive' : 'secondary'}
+                      className={`${
+                        s.status === 'shortlisted' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+                        s.status === 'rejected' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
+                        'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                      }`}
+                    >
+                      {s.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Link href={`/admin/submission/${s.id}`}>
+                        <Button size="sm" variant="outline" className="h-8">
+                          Review
+                        </Button>
+                      </Link>
+                      <form action={async () => { 'use server'; await triggerAIReviewForSubmission(s.id as number); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
+                        <Button 
+                          type="submit" 
+                          size="sm" 
+                          variant="outline"
+                          className="h-8 flex items-center gap-1"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          AI
+                        </Button>
+                      </form>
+                      <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
+                        <Button 
+                          type="submit" 
+                          size="sm" 
+                          className={`h-8 relative ${
+                            s.ai_recommendation === 'shortlist'
+                              ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 animate-pulse shadow-lg' 
+                              : 'bg-green-600 hover:bg-green-700'
+                          }`}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Accept
+                        </Button>
+                      </form>
+                      <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
+                        <Button 
+                          type="submit" 
+                          variant="destructive" 
+                          size="sm" 
+                          className={`h-8 relative ${
+                            s.ai_recommendation === 'reject'
+                              ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 animate-pulse shadow-lg' 
+                              : 'bg-red-600 hover:bg-red-700'
+                          }`}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </form>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Pagination Controls */}
       {totalPages > 1 && (

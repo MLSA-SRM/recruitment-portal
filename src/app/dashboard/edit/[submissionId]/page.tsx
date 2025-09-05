@@ -126,7 +126,14 @@ export default function EditSubmissionPage() {
               initialData[key] = ''
             }
           })
+          console.log('Initializing form data with fields:', fields.length, 'initialData:', initialData)
           setFormData(initialData)
+        } else {
+          // No custom fields - initialize with fallback submission URL
+          setSubmissionFields([])
+          setFormData({
+            submissionUrl: submissionData.submission_url || ''
+          })
         }
 
       } catch (error) {
@@ -150,11 +157,28 @@ export default function EditSubmissionPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     
-    submissionFields.forEach(field => {
-      if (field.is_required && (!formData[`field_${field.field_name}`] || formData[`field_${field.field_name}`].trim() === '')) {
-        newErrors[`field_${field.field_name}`] = `${field.field_label} is required`
+    if (submissionFields.length > 0) {
+      // Validate custom submission fields
+      submissionFields.forEach(field => {
+        if (field.is_required && (!formData[`field_${field.field_name}`] || formData[`field_${field.field_name}`].trim() === '')) {
+          newErrors[`field_${field.field_name}`] = `${field.field_label} is required`
+        }
+      })
+      
+      // Only validate URL if there are URL-type fields
+      const hasUrlFields = submissionFields.some(field => field.field_type === 'url')
+      if (hasUrlFields) {
+        const urlField = submissionFields.find(field => field.field_type === 'url')
+        if (urlField && (!formData[`field_${urlField.field_name}`] || formData[`field_${urlField.field_name}`].trim() === '')) {
+          newErrors[`field_${urlField.field_name}`] = `${urlField.field_label} is required`
+        }
       }
-    })
+    } else {
+      // Validate fallback submission URL field
+      if (!formData.submissionUrl || formData.submissionUrl.trim() === '') {
+        newErrors.submissionUrl = 'Submission URL is required'
+      }
+    }
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -172,8 +196,10 @@ export default function EditSubmissionPage() {
       
       // Get the main submission URL from form data
       let submissionUrl = ''
-      if (submissionFields.length > 0) {
-        // Use custom submission fields
+      const hasUrlFieldsInSubmission = submissionFields.some(field => field.field_type === 'url')
+      
+      if (submissionFields.length > 0 && hasUrlFieldsInSubmission) {
+        // Use custom submission fields that are URL type
         submissionFields.forEach(field => {
           if (field.field_type === 'url') {
             const value = formData[`field_${field.field_name}`]
@@ -193,16 +219,32 @@ export default function EditSubmissionPage() {
             if (val && typeof val === 'string') submissionUrl = val.trim()
           }
         }
+      } else if (submissionFields.length > 0 && !hasUrlFieldsInSubmission) {
+        // Custom fields exist but no URL fields - use existing submission URL
+        submissionUrl = submission?.submission_url || ''
       } else {
-        // Fallback to simple submission URL
+        // No custom fields - use fallback submission URL field
         submissionUrl = (formData.submissionUrl || submission?.submission_url || '').trim()
       }
 
-      // Basic validation: require non-empty URL
-      if (!submissionUrl) {
+      // Basic validation: require non-empty URL only if there are URL fields or no custom fields
+      const shouldRequireUrl = hasUrlFieldsInSubmission || submissionFields.length === 0
+      
+      if (shouldRequireUrl && (!submissionUrl || submissionUrl.trim() === '')) {
         toast.error('Please provide a valid submission URL')
         setIsSubmitting(false)
         return
+      }
+
+      // Basic URL format validation only if URL is provided
+      if (submissionUrl && submissionUrl.trim() !== '') {
+        try {
+          new URL(submissionUrl)
+        } catch {
+          toast.error('Please provide a valid URL format (e.g., https://github.com/username/repo)')
+          setIsSubmitting(false)
+          return
+        }
       }
 
       console.log('Updating submission with URL:', submissionUrl)
@@ -415,6 +457,14 @@ export default function EditSubmissionPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {submissionFields.length > 0 ? (
               <>
+                <div className="text-sm text-gray-600 mb-4">
+                  Found {submissionFields.length} custom submission field{submissionFields.length > 1 ? 's' : ''} for this task.
+                  {!submissionFields.some(field => field.field_type === 'url') && (
+                    <span className="block mt-1 text-blue-600">
+                      Note: This task doesn&apos;t require a URL submission.
+                    </span>
+                  )}
+                </div>
                 {submissionFields.map((field) => (
                 <div key={field.id} className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
@@ -463,6 +513,9 @@ export default function EditSubmissionPage() {
               </>
             ) : (
               <div className="space-y-2">
+                <div className="text-sm text-gray-600 mb-2">
+                  No custom submission fields found. Using default URL field.
+                </div>
                 <label className="text-sm font-medium text-gray-700">Submission URL *</label>
                 <Input
                   type="url"

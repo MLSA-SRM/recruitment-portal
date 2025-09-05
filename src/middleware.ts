@@ -3,10 +3,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { env } from '@/env'
 
+// Cache for user sessions to reduce database calls
+const sessionCache = new Map<string, { user: any; profile: any; timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
-  // Create Supabase client for middleware
+  // Create optimized Supabase client for middleware
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -42,9 +46,16 @@ export async function middleware(req: NextRequest) {
           })
         },
       },
+      auth: {
+        // Optimize auth settings for middleware
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
     }
   )
 
+  // Get user with caching
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -63,12 +74,41 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 
-  // Check if user has a profile for protected routes
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  // Check cache for user profile
+  const cacheKey = user.id
+  const cached = sessionCache.get(cacheKey)
+  const now = Date.now()
+  
+  let profile = null
+  
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    // Use cached profile
+    profile = cached.profile
+  } else {
+    // Fetch fresh profile and cache it
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    profile = profileData
+    
+    // Update cache
+    sessionCache.set(cacheKey, {
+      user,
+      profile,
+      timestamp: now
+    })
+    
+    // Clean up old cache entries
+    if (sessionCache.size > 100) {
+      const oldestKey = sessionCache.keys().next().value
+      if (oldestKey) {
+        sessionCache.delete(oldestKey)
+      }
+    }
+  }
 
   // Routes that require a complete profile
   const profileRequiredRoutes = ['/dashboard', '/apply']

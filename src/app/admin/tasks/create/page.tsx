@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Calendar, Clock, Target, FileText, AlertCircle, CheckCircle, ClipboardList, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import Link from 'next/link'
 import { createTask } from '@/app/actions'
@@ -21,9 +23,9 @@ export default function CreateTaskPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    domain: '',
-    subdomain: '',
-    target_year: '',
+    domain: 'none',
+    subdomain: 'none',
+    target_year: 'all',
     deadline: '',
     estimated_duration: '',
     requirements: '',
@@ -90,6 +92,70 @@ export default function CreateTaskPage() {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+    
+    // Real-time validation for better UX
+    validateField(field, value)
+  }
+
+  const validateField = (field: string, value: string) => {
+    const newErrors: Record<string, string> = { ...errors }
+    
+    switch (field) {
+      case 'title':
+        if (!value.trim()) {
+          newErrors.title = 'Task title is required'
+        } else if (value.trim().length < 5) {
+          newErrors.title = 'Task title must be at least 5 characters'
+        } else {
+          delete newErrors.title
+        }
+        break
+      case 'description':
+        if (!value.trim()) {
+          newErrors.description = 'Description is required'
+        } else if (value.trim().length < 20) {
+          newErrors.description = 'Description must be at least 20 characters'
+        } else {
+          delete newErrors.description
+        }
+        break
+      case 'domain':
+        if (!value || value === 'none') {
+          newErrors.domain = 'Domain is required'
+        } else {
+          delete newErrors.domain
+        }
+        break
+      case 'subdomain':
+        if (!value || value === 'none') {
+          newErrors.subdomain = 'Subdomain is required'
+        } else {
+          delete newErrors.subdomain
+        }
+        break
+      case 'target_year':
+        if (!value || value === 'all') {
+          newErrors.target_year = 'Target year is required'
+        } else {
+          delete newErrors.target_year
+        }
+        break
+      case 'deadline':
+        if (!value) {
+          newErrors.deadline = 'Deadline is required'
+        } else {
+          const deadlineDate = new Date(value)
+          const today = new Date()
+          if (deadlineDate <= today) {
+            newErrors.deadline = 'Deadline must be in the future'
+          } else {
+            delete newErrors.deadline
+          }
+        }
+        break
+    }
+    
+    setErrors(newErrors)
   }
 
   // Compress image using canvas to WebP with max width/height and quality
@@ -142,9 +208,9 @@ export default function CreateTaskPage() {
     const newErrors: Record<string, string> = {}
     
     if (!formData.title.trim()) newErrors.title = 'Task title is required'
-    if (!formData.domain) newErrors.domain = 'Domain is required'
-    if (!formData.subdomain) newErrors.subdomain = 'Subdomain is required'
-    if (!formData.target_year) newErrors.target_year = 'Target year is required'
+    if (!formData.domain || formData.domain === 'none') newErrors.domain = 'Domain is required'
+    if (!formData.subdomain || formData.subdomain === 'none') newErrors.subdomain = 'Subdomain is required'
+    if (!formData.target_year || formData.target_year === 'all') newErrors.target_year = 'Target year is required'
     if (!formData.deadline) newErrors.deadline = 'Deadline is required'
     if (!formData.description.trim()) newErrors.description = 'Description is required'
     
@@ -239,40 +305,85 @@ export default function CreateTaskPage() {
   }
 
   const getSubdomainOptions = () => {
-    if (!formData.domain) return []
+    if (!formData.domain || formData.domain === 'none') return []
     return DOMAIN_SUBDOMAINS[formData.domain as Domain] || []
+  }
+
+  // Calculate form completion percentage
+  const getFormProgress = () => {
+    const requiredFields = ['title', 'description', 'domain', 'subdomain', 'target_year', 'deadline']
+    const completedFields = requiredFields.filter(field => {
+      const value = formData[field as keyof typeof formData]
+      return value && value !== 'all' && value !== 'none' && value.trim() !== ''
+    })
+    return Math.round((completedFields.length / requiredFields.length) * 100)
+  }
+
+  const isFormValid = () => {
+    return Object.keys(errors).length === 0 && 
+           formData.title.trim() !== '' &&
+           formData.description.trim() !== '' &&
+           formData.domain !== '' && formData.domain !== 'none' &&
+           formData.subdomain !== '' && formData.subdomain !== 'none' &&
+           formData.target_year !== '' && formData.target_year !== 'all' &&
+           formData.deadline !== ''
   }
 
 
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <Link href="/admin/tasks" className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors">
-          <span className="mr-2">←</span>
-          Back to Tasks
-        </Link>
-        <div className="mt-4">
-          <h1 className="text-4xl font-bold text-gray-900">Create New Task</h1>
-          <p className="text-lg text-gray-600 mt-2">
-            Design a comprehensive task that will attract the right candidates
-          </p>
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <Link href="/admin/tasks" className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors mb-6">
+            <span className="mr-2">←</span>
+            Back to Tasks
+          </Link>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight text-gray-900">Create New Task</h1>
+            <p className="text-xl text-gray-600 mt-3 font-light leading-relaxed">
+              Design a comprehensive task that will attract the right candidates
+            </p>
+            
+            {/* Form Progress Indicator */}
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Form Progress</span>
+                <span className="font-medium text-gray-900">{getFormProgress()}% Complete</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${getFormProgress()}%` }}
+                />
+              </div>
+              {isFormValid() && (
+                <div className="flex items-center gap-2 text-green-600 text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">Form is ready to submit!</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8" id="create-task-form">
-        {/* Basic Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Basic Information
-            </CardTitle>
-            <CardDescription>
-              Provide the essential details about the task
-            </CardDescription>
-          </CardHeader>
+        <form onSubmit={handleSubmit} className="space-y-8" id="create-task-form">
+          {/* Basic Information Card */}
+          <Card className="shadow-lg border-0 bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b p-6 -mx-6 -mt-6 mb-6">
+              <div className="px-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                  </div>
+                  Basic Information
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-1">
+                  Provide the essential details about the task
+                </CardDescription>
+              </div>
+            </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Task Title *</label>
@@ -336,41 +447,47 @@ export default function CreateTaskPage() {
           </div>
         )}
 
-        {/* Task Details Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Task Details
-            </CardTitle>
-            <CardDescription>
-              Specify the domain, target audience, and requirements
-            </CardDescription>
-          </CardHeader>
+          {/* Task Details Card */}
+          <Card className="shadow-lg border-0 bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b p-6 -mx-6 -mt-6 mb-6">
+              <div className="px-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <Target className="h-4 w-4 text-green-600" />
+                  </div>
+                  Task Details
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-1">
+                  Specify the domain, target audience, and requirements
+                </CardDescription>
+              </div>
+            </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Domain *</label>
-                <select 
-                  value={formData.domain}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                    handleInputChange('domain', e.target.value)
-                    handleInputChange('subdomain', '') // Reset subdomain when domain changes
-                    if (e.target.value) {
+                <Label htmlFor="domain" className="text-sm font-medium text-gray-700">Domain *</Label>
+                <Select 
+                  value={formData.domain} 
+                  onValueChange={(value) => {
+                    handleInputChange('domain', value)
+                    handleInputChange('subdomain', 'none') // Reset subdomain when domain changes
+                    if (value && value !== 'none') {
                       toast.info('Domain changed', {
                         description: 'Please select a subdomain for the new domain'
                       })
                     }
                   }}
-                  className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.domain ? 'border-red-500' : 'border-gray-300'
-                  }`}
                 >
-                  <option value="">Select Domain</option>
-                  {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
-                    <option key={domain} value={domain}>{domain}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className={errors.domain ? 'border-red-500 focus:ring-red-500' : ''}>
+                    <SelectValue placeholder="Select Domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select Domain</SelectItem>
+                    {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
+                      <SelectItem key={domain} value={domain}>{domain}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.domain && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
@@ -380,20 +497,26 @@ export default function CreateTaskPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Subdomain *</label>
-                <select 
-                  value={formData.subdomain}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('subdomain', e.target.value)}
+                <Label htmlFor="subdomain" className="text-sm font-medium text-gray-700">Subdomain *</Label>
+                <Select 
+                  value={formData.subdomain} 
+                  onValueChange={(value) => handleInputChange('subdomain', value)}
                   disabled={!formData.domain}
-                  className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.subdomain ? 'border-red-500' : 'border-gray-300'
-                  } ${!formData.domain ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                 >
-                  <option value="">Select Subdomain</option>
-                  {getSubdomainOptions().map((subdomain) => (
-                    <option key={subdomain} value={subdomain}>{subdomain}</option>
-                  ))}
-                </select>
+                  <SelectTrigger 
+                    className={`${errors.subdomain ? 'border-red-500 focus:ring-red-500' : ''} ${
+                      !formData.domain ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <SelectValue placeholder="Select Subdomain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select Subdomain</SelectItem>
+                    {getSubdomainOptions().map((subdomain) => (
+                      <SelectItem key={subdomain} value={subdomain}>{subdomain}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.subdomain && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
@@ -404,18 +527,19 @@ export default function CreateTaskPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Target Year *</label>
-              <select 
-                value={formData.target_year}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('target_year', e.target.value)}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.target_year ? 'border-red-500' : 'border-gray-300'
-                }`}
+              <Label htmlFor="target_year" className="text-sm font-medium text-gray-700">Target Year *</Label>
+              <Select 
+                value={formData.target_year} 
+                onValueChange={(value) => handleInputChange('target_year', value)}
               >
-                <option value="">Select Year</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-              </select>
+                <SelectTrigger className={errors.target_year ? 'border-red-500 focus:ring-red-500' : ''}>
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1st Year</SelectItem>
+                  <SelectItem value="2">2nd Year</SelectItem>
+                </SelectContent>
+              </Select>
               {errors.target_year && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="h-4 w-4" />
@@ -426,17 +550,21 @@ export default function CreateTaskPage() {
           </CardContent>
         </Card>
 
-        {/* Timeline & Requirements Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Timeline & Requirements
-            </CardTitle>
-            <CardDescription>
-              Set deadlines and define clear deliverables
-            </CardDescription>
-          </CardHeader>
+          {/* Timeline & Requirements Card */}
+          <Card className="shadow-lg border-0 bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b p-6 -mx-6 -mt-6 mb-6">
+              <div className="px-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                  </div>
+                  Timeline & Requirements
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-1">
+                  Set deadlines and define clear deliverables
+                </CardDescription>
+              </div>
+            </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -493,17 +621,21 @@ export default function CreateTaskPage() {
           </CardContent>
         </Card>
 
-        {/* Submission Fields Manager */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-purple-600" />
-              Custom Submission Fields
-            </CardTitle>
-            <CardDescription>
-              Define what information applicants need to provide when applying
-            </CardDescription>
-          </CardHeader>
+          {/* Submission Fields Manager */}
+          <Card className="shadow-lg border-0 bg-white overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b p-6 -mx-6 -mt-6 mb-6">
+              <div className="px-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                    <ClipboardList className="h-4 w-4 text-purple-600" />
+                  </div>
+                  Custom Submission Fields
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-1">
+                  Define what information applicants need to provide when applying
+                </CardDescription>
+              </div>
+            </CardHeader>
           <CardContent>
             <SubmissionFieldsManager
               taskId={0} // Will be set when task is created
@@ -513,87 +645,170 @@ export default function CreateTaskPage() {
           </CardContent>
         </Card>
 
-        {/* Task Preview Card */}
-        <Card className="bg-gray-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              Task Preview
-            </CardTitle>
-            <CardDescription>
-              Review how your task will appear to applicants
-            </CardDescription>
-          </CardHeader>
+          {/* Task Preview Card */}
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-gray-100 to-gray-200 border-b p-6 -mx-6 -mt-6 mb-6">
+              <div className="px-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  Task Preview
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-1">
+                  Review how your task will appear to applicants
+                </CardDescription>
+              </div>
+            </CardHeader>
           <CardContent>
-            {formData.title && (
+            {formData.title ? (
               <div className="space-y-4">
-                <div className="bg-white p-4 rounded-lg border">
-                  <h3 className="text-lg font-semibold text-gray-900">{formData.title}</h3>
-                  {formData.description && (
-                    <p className="text-gray-600 mt-2">{formData.description}</p>
-                  )}
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {formData.domain && (
-                      <Badge variant="secondary">{formData.domain}</Badge>
-                    )}
-                    {formData.subdomain && (
-                      <Badge variant="outline">{formData.subdomain}</Badge>
-                    )}
-
-                    {formData.target_year && (
-                      <Badge variant="secondary">{formData.target_year === '1' ? '1st' : '2nd'} Year</Badge>
+                <div className="bg-white p-6 rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{formData.title}</h3>
+                      {formData.description && (
+                        <p className="text-gray-600 mb-4 leading-relaxed">{formData.description}</p>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {formData.domain && formData.domain !== 'none' && (
+                          <Badge variant="secondary" className="px-3 py-1">
+                            {formData.domain}
+                          </Badge>
+                        )}
+                        {formData.subdomain && formData.subdomain !== 'none' && (
+                          <Badge variant="outline" className="px-3 py-1">
+                            {formData.subdomain}
+                          </Badge>
+                        )}
+                        {formData.target_year && formData.target_year !== 'all' && (
+                          <Badge variant="secondary" className="px-3 py-1">
+                            {formData.target_year === '1' ? '1st' : '2nd'} Year
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {formData.deadline && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md">
+                          <Calendar className="h-4 w-4" />
+                          <span className="font-medium">Deadline:</span>
+                          <span>{new Date(formData.deadline).toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}</span>
+                        </div>
+                      )}
+                      
+                      {formData.estimated_duration && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
+                          <Clock className="h-4 w-4" />
+                          <span>Estimated Duration: {formData.estimated_duration}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {imageUrl && (
+                      <div className="ml-4">
+                        <NextImage 
+                          src={imageUrl} 
+                          alt="Task preview" 
+                          width={120} 
+                          height={68} 
+                          className="rounded-lg border shadow-sm" 
+                        />
+                      </div>
                     )}
                   </div>
-                  {formData.deadline && (
-                    <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-                      <Calendar className="h-4 w-4" />
-                      Deadline: {new Date(formData.deadline).toLocaleDateString()}
+                  
+                  {(formData.requirements || formData.deliverables) && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {formData.requirements && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-1">Requirements</h4>
+                            <p className="text-sm text-gray-600 line-clamp-3">{formData.requirements}</p>
+                          </div>
+                        )}
+                        {formData.deliverables && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-1">Deliverables</h4>
+                            <p className="text-sm text-gray-600 line-clamp-3">{formData.deliverables}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">Start filling out the form to see a preview of your task</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Action Buttons */}
-        <div className="space-y-4 pt-6">
-          {hasSubmitted.current && (
-            <div className="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-800 text-sm">
-                Task creation has been initiated. Please wait for the process to complete.
-              </p>
-            </div>
-          )}
-          {submitError && (
-            <div className="w-full p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-800 text-sm">{submitError}</p>
-            </div>
-          )}
-          <div className="flex gap-4">
-            <Button 
-              type="submit" 
-              className="flex-1 text-lg"
-              disabled={isSubmitting || hasSubmitted.current}
-              onClick={(e) => {
-                if (hasSubmitted.current || isSubmitting) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  console.log('Button click blocked - already submitted or submitting')
-                  return false
-                }
-              }}
-            >
-              {isSubmitting ? 'Creating Task...' : hasSubmitted.current ? 'Task Created!' : 'Create Task'}
-            </Button>
-            <Link href="/admin/tasks">
-              <Button type="button" variant="outline" className="text-lg">
-                Cancel
+          {/* Action Buttons */}
+          <div className="space-y-6 pt-8">
+            {hasSubmitted.current && (
+              <div className="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                  <p className="text-yellow-800 text-sm font-medium">
+                    Task creation has been initiated. Please wait for the process to complete.
+                  </p>
+                </div>
+              </div>
+            )}
+            {submitError && (
+              <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <p className="text-red-800 text-sm font-medium">{submitError}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-4">
+              <Button 
+                type="submit" 
+                className="flex-1 text-lg py-6 shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={isSubmitting || hasSubmitted.current}
+                onClick={(e) => {
+                  if (hasSubmitted.current || isSubmitting) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    console.log('Button click blocked - already submitted or submitting')
+                    return false
+                  }
+                }}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating Task...
+                  </div>
+                ) : hasSubmitted.current ? (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Task Created!
+                  </div>
+                ) : (
+                  'Create Task'
+                )}
               </Button>
-            </Link>
+              <Link href="/admin/tasks">
+                <Button type="button" variant="outline" className="text-lg py-6 px-8 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

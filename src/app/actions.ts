@@ -1,7 +1,7 @@
 'use server'
 
 import { createSupabaseServer } from '@/lib/supabase'
-import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS } from '@/lib/ai'
+import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS, validateSubmissionUrls, analyzeContentForFakeSubmission, detectFakeSubmission } from '@/lib/ai'
 import { Octokit } from 'octokit'
 import * as cheerio from 'cheerio'
 import { z } from 'zod'
@@ -121,6 +121,60 @@ async function performAIReview(opts: {
     submissionDataKeys: submissionData ? Object.keys(submissionData) : [],
     submissionDataPreview: submissionData ? JSON.stringify(submissionData, null, 2).slice(0, 500) : 'null'
   })
+
+  // Basic URL validation - only check for completely empty or malformed URLs
+  const urlsToValidate: string[] = []
+  if (submissionUrl) urlsToValidate.push(submissionUrl)
+  
+  if (submissionData) {
+    Object.entries(submissionData).forEach(([fieldName, fieldInfo]) => {
+      if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
+        const { value, type } = fieldInfo as { value: unknown; type: string }
+        if (type === 'url' && typeof value === 'string' && value.trim()) {
+          urlsToValidate.push(value.trim())
+        }
+      }
+    })
+  }
+
+  const urlValidation = validateSubmissionUrls(urlsToValidate)
+  if (!urlValidation.isValid && urlValidation.isPlaceholder) {
+    console.log(`[AI][${context}] Invalid URLs detected:`, urlValidation.reason)
+    
+    const { error: invalidUrlError } = await supabase.from('submissions').update({
+      ai_score: 0, // Score 0 for completely invalid URLs
+      ai_review: `**AI Review - Invalid Submission**
+
+## Summary
+This submission contains invalid or malformed URLs (${urlValidation.reason}) and cannot be properly evaluated.
+
+## Score Breakdown
+| Area | Points | Why points were deducted |
+| --- | --- | --- |
+| Task Compliance & Requirements | 0/300 | Invalid submission format |
+| Code Quality & Architecture | 0/250 | No valid content to evaluate |
+| Functionality & Correctness | 0/200 | No valid content to evaluate |
+| Technical Implementation | 0/150 | No valid content to evaluate |
+| Documentation & Deployment | 0/100 | No valid content to evaluate |
+
+## Critical Issues
+- **Invalid URLs**: Submission contains malformed or empty URLs
+- **Cannot Evaluate**: Unable to access or analyze the submission content
+
+## Recommendations
+- **Fix URL format**: Ensure all URLs are properly formatted and accessible
+- **Resubmit**: Provide valid, working URLs to your project repository and demo
+- **Test links**: Verify all URLs work before submitting
+
+**Note**: Please resubmit with properly formatted, working URLs.`,
+      ai_recommendation: 'reject'
+    }).eq('id', submissionId)
+    
+    if (invalidUrlError) {
+      console.error(`[AI][${context}] Failed to update invalid URL rejection:`, invalidUrlError)
+    }
+    return
+  }
 
   const { data: task } = await supabase
     .from('tasks')
@@ -252,12 +306,49 @@ async function performAIReview(opts: {
     
     content = submissionContent.join('\n\n')
     
+    // Enhanced fake submission detection combining URL and content analysis
+    const fakeDetection = detectFakeSubmission(urlsToValidate, content)
+    if (fakeDetection.isFake && fakeDetection.shouldAwardZero) {
+      console.log(`[AI][${context}] Fake submission detected:`, {
+        confidence: fakeDetection.confidence,
+        reasons: fakeDetection.reasons,
+        shouldAwardZero: fakeDetection.shouldAwardZero
+      })
+      
+      // Award zero points for fake submissions
+      const { error: fakeSubmissionError } = await supabase.from('submissions').update({
+        ai_score: 0,
+        ai_review: `**FAKE SUBMISSION DETECTED**
+
+**Confidence:** ${Math.round(fakeDetection.confidence * 100)}%
+
+**Reasons:**
+${fakeDetection.reasons.map(reason => `- ${reason}`).join('\n')}
+
+**Score:** 0/1000
+
+This submission appears to be fake, placeholder, or contains no actual work. Please submit a genuine project that addresses the task requirements.`,
+        ai_recommendation: 'reject'
+      }).eq('id', submissionId)
+      
+      if (fakeSubmissionError) {
+        console.error(`[AI][${context}] Failed to write fake submission detection:`, fakeSubmissionError)
+      }
+      return
+    }
+    
     console.log(`[AI][${context}] Content built:`, {
       contentLength: content.length,
       hasValidContent,
       submissionContentLength: submissionContent.length,
       contentPreview: content.slice(0, 500),
-      taskDomain: task?.domain
+      taskDomain: task?.domain,
+      fakeSubmissionAnalysis: {
+        isFake: fakeDetection.isFake,
+        confidence: fakeDetection.confidence,
+        reasons: fakeDetection.reasons,
+        shouldAwardZero: fakeDetection.shouldAwardZero
+      }
     })
     
     if (hasValidContent) {
@@ -323,7 +414,12 @@ CONSTRAINTS:
       // Fallback to legacy parsing method
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: concisePrompt }] }],
-        generationConfig: { maxOutputTokens: 800 }
+        generationConfig: { 
+          temperature: 0, // Ensure deterministic responses
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 1000
+        }
       })
       const text = result.response.text()
       parsed = await parseGeminiJsonResponse(text)
@@ -531,7 +627,12 @@ async function retryAIReview(submissionId: number, prompt: string, supabase: Awa
       // Fallback to legacy parsing method
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 800 }
+        generationConfig: { 
+          temperature: 0, // Ensure deterministic responses
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 1000
+        }
       })
       const responseText = result.response.text()
       console.log(`[AI][retry] Response received, length: ${responseText.length}`)
@@ -991,14 +1092,64 @@ export async function deleteTask(taskId: number) {
     throw new Error('Unauthorized: Admin access required')
   }
 
-  // Delete the task
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', taskId)
+  try {
+    // First, delete all related data in the correct order to avoid foreign key constraints
+    
+    // 1. Delete submission field values (if any exist)
+    // First get all submission IDs for this task
+    const { data: submissions } = await supabase
+      .from('submissions')
+      .select('id')
+      .eq('task_id', taskId)
+    
+    if (submissions && submissions.length > 0) {
+      const submissionIds = submissions.map(s => s.id)
+      const { error: submissionFieldValuesError } = await supabase
+        .from('submission_field_values')
+        .delete()
+        .in('submission_id', submissionIds)
+      
+      if (submissionFieldValuesError) {
+        console.warn('Warning deleting submission field values:', submissionFieldValuesError)
+      }
+    }
 
-  if (error) throw error
-  return { ok: true }
+    // 2. Delete submission fields for this task
+    const { error: submissionFieldsError } = await supabase
+      .from('submission_fields')
+      .delete()
+      .eq('task_id', taskId)
+    
+    if (submissionFieldsError) {
+      console.warn('Warning deleting submission fields:', submissionFieldsError)
+    }
+
+    // 3. Delete submissions for this task
+    const { error: submissionsError } = await supabase
+      .from('submissions')
+      .delete()
+      .eq('task_id', taskId)
+    
+    if (submissionsError) {
+      console.warn('Warning deleting submissions:', submissionsError)
+    }
+
+    // 4. Finally, delete the task itself
+    const { error: taskError } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+
+    if (taskError) {
+      console.error('Error deleting task:', taskError)
+      throw taskError
+    }
+
+    return { ok: true }
+  } catch (error) {
+    console.error('Error in deleteTask:', error)
+    throw error
+  }
 }
 
 async function isCurrentUserAdmin(): Promise<boolean> {

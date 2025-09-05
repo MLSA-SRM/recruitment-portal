@@ -5,9 +5,12 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, FileText, AlertCircle, CheckCircle, Edit, Eye } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Calendar, Clock, FileText, AlertCircle, CheckCircle, Edit, Eye, Upload, Target, Users } from 'lucide-react'
 import Link from 'next/link'
-import { handleSubmission, canSubmitToTask } from '@/app/actions'
+import { handleSubmission } from '@/app/actions'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { use } from 'react'
@@ -73,8 +76,11 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
         }
 
         // Check submission status
-        const statusResponse = await canSubmitToTask(Number(taskId))
-        setSubmissionStatus(statusResponse)
+        const statusResponse = await fetch(`/api/submission-status?taskId=${taskId}`)
+        if (statusResponse.ok) {
+          const status = await statusResponse.json()
+          setSubmissionStatus(status)
+        }
       } catch (error) {
         console.error('Error fetching task or status:', error)
         toast.error('Failed to load task information')
@@ -97,8 +103,11 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
       await handleSubmission(formData)
       toast.success('Application submitted successfully!')
       // Refresh submission status
-      const statusResponse = await canSubmitToTask(Number(taskId))
-      setSubmissionStatus(statusResponse)
+      const statusResponse = await fetch(`/api/submission-status?taskId=${taskId}`)
+      if (statusResponse.ok) {
+        const status = await statusResponse.json()
+        setSubmissionStatus(status)
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit application')
     } finally {
@@ -109,11 +118,22 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl py-10 space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-        </div>
+        <Card>
+          <CardHeader>
+            <div className="animate-pulse">
+              <div className="h-8 bg-muted rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-muted rounded w-2/3"></div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-muted rounded w-full"></div>
+              <div className="h-4 bg-muted rounded w-5/6"></div>
+              <div className="h-4 bg-muted rounded w-4/6"></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -121,13 +141,24 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
   if (!task) {
     return (
       <div className="mx-auto max-w-2xl py-10 space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-red-600">Task Not Found</h1>
-          <p className="text-muted-foreground mt-2">The task you&apos;re looking for doesn&apos;t exist or has been removed.</p>
-          <Link href="/apply" className="text-blue-600 hover:text-blue-700 mt-4 inline-block">
-            ← Back to Available Tasks
-          </Link>
-        </div>
+        <Card className="border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-destructive">Task Not Found</h1>
+                <p className="text-muted-foreground mt-2">The task you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+              </div>
+              <Link href="/apply">
+                <Button variant="outline" className="mt-4">
+                  ← Back to Available Tasks
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -150,43 +181,59 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
             />
           </div>
         )}
-        <p className="text-muted-foreground mt-2">{task.description}</p>
-        <div className="text-sm text-muted-foreground mt-1">
-          {task.domain}{task.subdomain ? ` • ${task.subdomain}` : ''} • Target Year: {task.target_year}
+        <p className="text-muted-foreground mt-2 leading-relaxed">{task.description}</p>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {task.domain && (
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary">
+              <Target className="h-3 w-3 mr-1" />
+              {task.domain}
+            </Badge>
+          )}
+          {task.subdomain && (
+            <Badge variant="outline" className="px-3 py-1 text-xs font-medium">
+              {task.subdomain}
+            </Badge>
+          )}
+          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700">
+            <Users className="h-3 w-3 mr-1" />
+            {task.target_year}{task.target_year === 1 ? 'st' : task.target_year === 2 ? 'nd' : task.target_year === 3 ? 'rd' : 'th'} Year
+          </Badge>
         </div>
         
         {/* Deadline and Status Information */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
-                Deadline: {deadlineDate ? deadlineDate.toLocaleDateString() : 'No deadline set'}
-              </span>
-            </div>
-            
-            {submissionStatus && (
+        <Card className="mt-4">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center space-x-2">
-                {submissionStatus.hasSubmitted ? (
-                  <Badge variant="secondary" className="flex items-center space-x-1">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>Submitted</span>
-                  </Badge>
-                ) : isDeadlinePassed ? (
-                  <Badge variant="destructive" className="flex items-center space-x-1">
-                    <Clock className="h-3 w-3" />
-                    <span>Deadline Passed</span>
-                  </Badge>
-                ) : (
-                  <Badge variant="default" className="flex items-center space-x-1">
-                    <Clock className="h-3 w-3" />
-                    <span>Open</span>
-                  </Badge>
-                )}
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  Deadline: {deadlineDate ? deadlineDate.toLocaleDateString() : 'No deadline set'}
+                </span>
               </div>
-            )}
-          </div>
-        </div>
+              
+              {submissionStatus && (
+                <div className="flex items-center space-x-2">
+                  {submissionStatus.hasSubmitted ? (
+                    <Badge variant="secondary" className="flex items-center space-x-1 bg-green-100 text-green-700">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Submitted</span>
+                    </Badge>
+                  ) : isDeadlinePassed ? (
+                    <Badge variant="destructive" className="flex items-center space-x-1 bg-red-100 text-red-700">
+                      <Clock className="h-3 w-3" />
+                      <span>Closed</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" className="flex items-center space-x-1 bg-blue-100 text-blue-700">
+                      <Clock className="h-3 w-3" />
+                      <span>Open</span>
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Requirements & Deliverables */}
@@ -296,11 +343,11 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
                   <p className="text-sm text-gray-600 mb-4">Please provide the following information:</p>
                   
                   {submissionFields.map((field) => (
-                    <div key={field.id} className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
+                    <div key={field.id} className="space-y-3">
+                      <Label className="text-sm font-medium text-foreground">
                         {field.field_label}
-                        {field.is_required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
+                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
                       
                       {field.field_description && (
                         <p className="text-xs text-gray-500">{field.field_description}</p>
@@ -351,64 +398,94 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
                       )}
                       
                       {field.field_type === 'select' && field.field_options && (
-                        <select 
-                          name={`field_${field.field_name}`}
-                          required={field.is_required}
-                          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select {field.field_label.toLowerCase()}</option>
-                          {Object.entries(field.field_options).map(([key, value]) => (
-                            <option key={key} value={key}>{String(value)}</option>
-                          ))}
-                        </select>
+                        <Select name={`field_${field.field_name}`} required={field.is_required}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(field.field_options).map(([key, value]) => (
+                              <SelectItem key={key} value={key}>
+                                {String(value)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                       
                       {field.field_type === 'checkbox' && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {field.field_options && Object.entries(field.field_options).map(([key, value]) => (
-                            <label key={key} className="flex items-center space-x-2">
-                              <input 
-                                type="checkbox"
+                            <div key={key} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`field_${field.field_name}_${key}`}
                                 name={`field_${field.field_name}[]`}
                                 value={key}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                               />
-                              <span className="text-sm text-gray-700">{String(value)}</span>
-                            </label>
+                              <Label 
+                                htmlFor={`field_${field.field_name}_${key}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {String(value)}
+                              </Label>
+                            </div>
                           ))}
                         </div>
                       )}
                       
                       {field.field_type === 'file' && (
-                        <input 
-                          type="file"
-                          name={`field_${field.field_name}`}
-                          required={field.is_required}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
-                        />
+                        <div className="relative">
+                          <input 
+                            type="file"
+                            name={`field_${field.field_name}`}
+                            required={field.is_required}
+                            className="w-full p-3 border border-input rounded-md bg-background text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
+                          />
+                          <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                            <Upload className="h-3 w-3 mr-1" />
+                            <span>Accepted formats: PDF, DOC, DOCX, TXT, JPG, PNG, GIF, ZIP, RAR</span>
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
                 /* Fallback to simple submission URL if no custom fields */
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Submission URL</label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-foreground">
+                    Submission URL
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
                   <Input 
                     name="submissionUrl" 
                     placeholder="https://github.com/username/repo or a public document link" 
                     required 
+                    className="w-full"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Provide a link to your project repository, demo, or any relevant work for this task.
+                  </p>
                 </div>
               )}
               
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full h-12 text-base font-medium shadow-sm hover:shadow-md transition-all duration-200"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                {isSubmitting ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <span>Submitting Application...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Target className="h-4 w-4" />
+                    <span>Submit Application</span>
+                  </div>
+                )}
               </Button>
             </form>
           </CardContent>
@@ -417,8 +494,11 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
 
       {/* Back to Tasks Link */}
       <div className="text-center">
-        <Link href="/apply" className="text-blue-600 hover:text-blue-700">
-          ← Back to Available Tasks
+        <Link href="/apply">
+          <Button variant="outline" className="inline-flex items-center space-x-2">
+            <Eye className="h-4 w-4" />
+            <span>Back to Available Tasks</span>
+          </Button>
         </Link>
       </div>
       {showZoom && task.image_url && (

@@ -1,9 +1,10 @@
 import { createSupabaseServer } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import React from 'react'
-import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText } from 'lucide-react'
+import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 
 export default async function DashboardPage() {
@@ -12,12 +13,26 @@ export default async function DashboardPage() {
   
   if (!user) {
     return (
-      <div className="p-6 text-center">
-        <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
-        <p className="text-gray-600 mb-4">You need to be signed in to view your dashboard.</p>
-        <Link href="/auth/signin">
-          <Button>Sign In</Button>
-        </Link>
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-destructive">Authentication Required</h1>
+                <p className="text-muted-foreground mt-2">You need to be signed in to view your dashboard.</p>
+              </div>
+              <Link href="/auth/signin">
+                <Button className="mt-4">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Sign In
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -31,12 +46,26 @@ export default async function DashboardPage() {
 
   if (!profile) {
     return (
-      <div className="p-6 text-center">
-        <h1 className="text-2xl font-bold mb-4">Profile Setup Required</h1>
-        <p className="text-gray-600 mb-4">Please complete your profile setup before accessing the dashboard.</p>
-        <Link href="/profile/setup">
-          <Button>Complete Profile</Button>
-        </Link>
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <Users className="h-12 w-12 text-orange-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-orange-900">Profile Setup Required</h1>
+                <p className="text-orange-700 mt-2">Please complete your profile setup before accessing the dashboard.</p>
+              </div>
+              <Link href="/profile/setup">
+                <Button className="mt-4 bg-orange-600 hover:bg-orange-700 text-white">
+                  <Target className="h-4 w-4 mr-2" />
+                  Complete Profile
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -68,11 +97,18 @@ export default async function DashboardPage() {
   
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold mb-1">My Dashboard</h1>
-        <p className="text-sm text-gray-600">Track your submissions and updates</p>
-      </div>
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="h-6 w-6 text-primary" />
+            <span>My Dashboard</span>
+          </CardTitle>
+          <CardDescription>
+            Track your submissions and monitor your progress across all tasks
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {typedSubmissions && typedSubmissions.length > 0 ? (
         <div className="space-y-4">
@@ -85,68 +121,84 @@ export default async function DashboardPage() {
             const canEdit = submission.status === 'pending' && !deadlinePassed
             
             return (
-              <div key={submission.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-gray-200 transition-all duration-200">
-                {/* Header Section */}
-                <div className="relative bg-white px-4 py-4 border-b border-gray-100">
+              <Card key={submission.id} className="group hover:shadow-lg transition-all duration-300 hover:scale-[1.01]">
+                <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
-                      {task?.title}
-                    </h3>
-                      
+                      <CardTitle className="text-lg font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                        {task?.title}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {task?.domain}{task?.subdomain ? ` • ${task.subdomain}` : ''}
+                      </CardDescription>
                     </div>
                     
                     {/* Header Actions */}
                     <div className="ml-4 flex-shrink-0">
                       {canEdit ? (
                         <Link href={`/dashboard/edit/${submission.id}`}>
-                          <Button size="sm" variant="outline" className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                          <Button size="sm" variant="outline" className="flex items-center gap-2 hover:bg-primary/10 hover:border-primary transition-colors">
                             <Edit className="h-4 w-4" />
-                            Edit
+                            <span className="hidden sm:inline">Edit</span>
                           </Button>
                         </Link>
-                      ) : null}
+                      ) : (
+                        <Badge variant="secondary" className="flex items-center space-x-1">
+                          {submission.status === 'pending' ? (
+                            <>
+                              <Clock className="h-3 w-3" />
+                              <span>Pending</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-3 w-3" />
+                              <span>Reviewed</span>
+                            </>
+                          )}
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                </div>
+                </CardHeader>
 
-                {/* Content Section */}
-                <div className="p-4">
-                  <div className="space-y-3">
-                    {/* Submission Details Grid (compact; removed Task/Domain/Status duplicates) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    {/* Submission Details Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {/* Target Year */}
-                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
                         <div className="flex items-center justify-center w-8 h-8 bg-amber-100 rounded-md">
-                          <FileText className="h-4 w-4 text-amber-700" />
+                          <Users className="h-4 w-4 text-amber-700" />
                         </div>
                         <div>
-                          <div className="text-[11px] text-gray-500">Target Year</div>
-                          <div className="text-sm font-medium text-gray-900">{task?.target_year ? `${task.target_year === 1 ? '1st' : '2nd'} Year` : '—'}</div>
+                          <div className="text-xs text-muted-foreground">Target Year</div>
+                          <div className="text-sm font-medium text-foreground">
+                            {task?.target_year ? `${task.target_year === 1 ? '1st' : task.target_year === 2 ? '2nd' : task.target_year === 3 ? '3rd' : `${task.target_year}th`} Year` : '—'}
+                          </div>
                         </div>
                       </div>
 
                       {/* Submitted Date */}
-                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
                         <div className="flex items-center justify-center w-8 h-8 bg-emerald-100 rounded-md">
                           <Calendar className="h-4 w-4 text-emerald-700" />
                         </div>
                         <div>
-                          <div className="text-[11px] text-gray-500">Submitted</div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-xs text-muted-foreground">Submitted</div>
+                          <div className="text-sm font-medium text-foreground">
                             {new Date(submission.created_at!).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </div>
                         </div>
                       </div>
 
                       {/* Last Edited */}
-                      <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
                         <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-md">
                           <Edit className="h-4 w-4 text-purple-700" />
                         </div>
                         <div>
-                          <div className="text-[11px] text-gray-500">Last Edited</div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-xs text-muted-foreground">Last Edited</div>
+                          <div className="text-sm font-medium text-foreground">
                             {submission.updated_at ? new Date(submission.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </div>
                         </div>
@@ -154,18 +206,18 @@ export default async function DashboardPage() {
 
                       {/* Deadline */}
                       {task?.deadline && (
-                        <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
                           <div className={`flex items-center justify-center w-8 h-8 rounded-md ${deadlinePassed ? 'bg-red-100' : 'bg-green-100'}`}>
                             <Clock className={`h-4 w-4 ${deadlinePassed ? 'text-red-600' : 'text-green-600'}`} />
                           </div>
                           <div>
-                            <div className="text-[11px] text-gray-500">Deadline</div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs text-muted-foreground">Deadline</div>
+                            <div className="text-sm font-medium text-foreground">
                               {new Date(task.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                               {deadlinePassed ? (
-                                <Badge variant="destructive" className="ml-2 text-[10px]">Passed</Badge>
+                                <Badge variant="destructive" className="ml-2 text-xs">Passed</Badge>
                               ) : (
-                                <Badge variant="secondary" className="ml-2 text-[10px]">Active</Badge>
+                                <Badge variant="secondary" className="ml-2 text-xs">Active</Badge>
                               )}
                             </div>
                           </div>
@@ -174,38 +226,56 @@ export default async function DashboardPage() {
                     </div>
 
                     
-
-                    {/* Action Section (no edit button here anymore) */}
-                    <div className="flex items-center justify-end pt-1">
-                      {deadlinePassed ? (
-                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                          <AlertCircle className="h-4 w-4" />
-                          <span>Cannot Edit</span>
-                        </div>
-                      ) : submission.status !== 'pending' ? (
-                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-md">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Final</span>
-                        </div>
-                      ) : null}
+                    {/* Status Information */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        {deadlinePassed ? (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            <span>Deadline Passed</span>
+                          </Badge>
+                        ) : submission.status !== 'pending' ? (
+                          <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Final Submission</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700">
+                            <Clock className="h-3 w-3" />
+                            <span>Pending Review</span>
+                          </Badge>
+                        )}
+                      </div>
+                      
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">📝</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
-          <p className="text-gray-600 mb-4">
-            You haven&apos;t submitted any tasks yet. Browse available tasks and submit your first task.
-          </p>
-          <Link href="/apply">
-            <Button>Browse Tasks</Button>
-          </Link>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <FileText className="h-16 w-16 text-muted-foreground/50" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No Submissions Yet</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  You haven&apos;t submitted any tasks yet. Browse available tasks and submit your first task to get started.
+                </p>
+              </div>
+              <Link href="/apply">
+                <Button className="mt-4">
+                  <Target className="h-4 w-4 mr-2" />
+                  Browse Available Tasks
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

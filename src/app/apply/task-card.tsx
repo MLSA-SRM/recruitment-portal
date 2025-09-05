@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye } from 'lucide-react'
-import { canSubmitToTask } from '@/app/actions'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye, ExternalLink, Users, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageLightbox from '@/components/image-lightbox'
 
@@ -47,7 +47,11 @@ export default function TaskCard({ task }: TaskCardProps) {
   useEffect(() => {
     const fetchSubmissionStatus = async () => {
       try {
-        const status = await canSubmitToTask(task.id)
+        const response = await fetch(`/api/submission-status?taskId=${task.id}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch submission status')
+        }
+        const status = await response.json()
         setSubmissionStatus(status)
       } catch (error) {
         console.error('Error fetching submission status:', error)
@@ -97,23 +101,23 @@ export default function TaskCard({ task }: TaskCardProps) {
     
     if (submissionStatus?.hasSubmitted) {
       return (
-        <Badge variant="secondary" className="flex items-center space-x-1">
+        <Badge variant="secondary" className="flex items-center space-x-1 bg-green-100 text-green-700 hover:bg-green-200 transition-colors shadow-sm">
           <CheckCircle className="h-3 w-3" />
-          <span>Submitted</span>
+          <span className="font-medium">Submitted</span>
         </Badge>
       )
     } else if (isDeadlinePassed) {
       return (
-        <Badge variant="destructive" className="flex items-center space-x-1">
+        <Badge variant="destructive" className="flex items-center space-x-1 bg-red-100 text-red-700 hover:bg-red-200 transition-colors shadow-sm">
           <Clock className="h-3 w-3" />
-          <span>Deadline Passed</span>
+          <span className="font-medium">Closed</span>
         </Badge>
       )
     } else {
       return (
-        <Badge variant="default" className="flex items-center space-x-1">
+        <Badge variant="default" className="flex items-center space-x-1 bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors shadow-sm">
           <Clock className="h-3 w-3" />
-          <span>Open</span>
+          <span className="font-medium">Open</span>
         </Badge>
       )
     }
@@ -123,7 +127,10 @@ export default function TaskCard({ task }: TaskCardProps) {
     if (loading) {
       return (
         <Button size="sm" className="w-full h-10 font-medium" disabled>
-          Loading...
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <span>Loading...</span>
+          </div>
         </Button>
       )
     }
@@ -132,18 +139,20 @@ export default function TaskCard({ task }: TaskCardProps) {
       if (submissionStatus.canEdit) {
         return (
           <Link href={`/dashboard/edit/${submissionStatus.existingSubmissionId}`}>
-            <Button size="sm" className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium">
+            <Button size="sm" className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
               <Edit className="h-4 w-4 mr-2" />
-              <span>Edit Submission</span>
+              <span className="hidden sm:inline">Edit Submission</span>
+              <span className="sm:hidden">Edit</span>
             </Button>
           </Link>
         )
       } else {
         return (
           <Link href={`/dashboard`}>
-            <Button size="sm" className="w-full h-10 bg-gray-600 hover:bg-gray-700 text-white font-medium">
+            <Button size="sm" className="w-full h-10 bg-slate-600 hover:bg-slate-700 text-white font-medium shadow-sm hover:shadow-md transition-all duration-200">
               <Eye className="h-4 w-4 mr-2" />
-              <span>View Submission</span>
+              <span className="hidden sm:inline">View Submission</span>
+              <span className="sm:hidden">View</span>
             </Button>
           </Link>
         )
@@ -152,8 +161,10 @@ export default function TaskCard({ task }: TaskCardProps) {
 
     if (isDeadlinePassed) {
       return (
-        <Button size="sm" className="w-full h-10 font-medium" disabled>
-          Deadline Passed
+        <Button size="sm" className="w-full h-10 font-medium" disabled variant="outline">
+          <Clock className="h-4 w-4 mr-2" />
+          <span className="hidden sm:inline">Deadline Passed</span>
+          <span className="sm:hidden">Closed</span>
         </Button>
       )
     }
@@ -161,16 +172,20 @@ export default function TaskCard({ task }: TaskCardProps) {
     if (submissionStatus?.canSubmit) {
       return (
         <Link href={`/apply/${task.id}`}>
-          <Button size="sm" className="w-full h-10 font-medium">
-            Submit Task
+          <Button size="sm" className="w-full h-10 font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md transition-all duration-200">
+            <Target className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Submit Task</span>
+            <span className="sm:hidden">Submit</span>
           </Button>
         </Link>
       )
     }
 
     return (
-      <Button size="sm" className="w-full h-10 font-medium" disabled>
-        Cannot Submit
+      <Button size="sm" className="w-full h-10 font-medium" disabled variant="outline">
+        <AlertCircle className="h-4 w-4 mr-2" />
+        <span className="hidden sm:inline">Cannot Submit</span>
+        <span className="sm:hidden">Cannot Submit</span>
       </Button>
     )
   }
@@ -180,15 +195,15 @@ export default function TaskCard({ task }: TaskCardProps) {
 
     if (submissionStatus?.hasSubmitted) {
       return (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg shadow-sm">
           <div className="flex items-start space-x-3">
-            <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-700">
-              <p className="font-semibold mb-1">Already Submitted</p>
+            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-green-700">
+              <p className="font-semibold mb-1">Submission Complete</p>
               {submissionStatus.canEdit ? (
-                <p className="text-blue-600">You can edit your submission until the deadline.</p>
+                <p className="text-green-600">You can edit your submission until the deadline.</p>
               ) : (
-                <p className="text-blue-600">The deadline has passed, so you can no longer edit your submission.</p>
+                <p className="text-green-600">The deadline has passed, so you can no longer edit your submission.</p>
               )}
             </div>
           </div>
@@ -198,7 +213,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
     if (isDeadlinePassed && !submissionStatus?.hasSubmitted) {
       return (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg shadow-sm">
           <div className="flex items-start space-x-3">
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-red-700">
@@ -214,91 +229,112 @@ export default function TaskCard({ task }: TaskCardProps) {
   }
 
   return (
-    <div className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 overflow-hidden">
+    <Card className="group h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+      {/* Image Section */}
       {task.image_url && (
-        <div className="relative">
+        <div className="relative overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={task.image_url}
             alt="Task image thumbnail"
-            className="w-full h-48 object-cover cursor-zoom-in transition-transform duration-200 group-hover:scale-105"
+            className="w-full h-48 object-cover cursor-zoom-in transition-transform duration-300 group-hover:scale-110"
             onClick={() => setShowZoom(true)}
           />
           <div className="absolute top-3 right-3">
             {getStatusBadge()}
           </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       )}
       {showZoom && task.image_url && (
         <ImageLightbox src={task.image_url} alt="Task image" onClose={() => setShowZoom(false)} />
       )}
-      
-      <div className="p-6 space-y-6">
-        {/* Header Section */}
-        <div className="space-y-3">
-          <h3 className="text-xl font-bold text-gray-900 line-clamp-2 leading-tight">
-            {task.title}
-          </h3>
-          
-          <p className="text-gray-600 line-clamp-3 leading-relaxed text-sm">
-            {task.description || 'No description provided.'}
-          </p>
-        </div>
 
+      {/* Card Header */}
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-xl font-bold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+              {task.title}
+            </CardTitle>
+            <CardDescription className="mt-2 text-muted-foreground line-clamp-3 leading-relaxed">
+              {task.description || 'No description provided.'}
+            </CardDescription>
+          </div>
+          {!task.image_url && (
+            <div className="flex-shrink-0">
+              {getStatusBadge()}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+
+      {/* Card Content */}
+      <CardContent className="flex-1 space-y-4">
         {/* Tags Section */}
         <div className="flex flex-wrap gap-2">
           {task.domain && (
-            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+              <Target className="h-3 w-3 mr-1" />
               {task.domain}
             </Badge>
           )}
           {task.subdomain && (
-            <Badge variant="outline" className="px-3 py-1 text-xs font-medium border-gray-300">
+            <Badge variant="outline" className="px-3 py-1 text-xs font-medium border-border hover:bg-accent transition-colors">
               {task.subdomain}
             </Badge>
           )}
-          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
+          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
+            <Users className="h-3 w-3 mr-1" />
             {ordinal(task.target_year)} Year
           </Badge>
         </div>
 
         {/* Timeline Section */}
-        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+        <div className="bg-muted/50 rounded-lg p-4 space-y-3 border">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             {deadlineDate && (
-              <div className="flex items-center text-gray-700">
-                <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+              <div className="flex items-center text-muted-foreground">
+                <Calendar className="h-4 w-4 mr-2 text-muted-foreground/70" />
                 <span className="font-medium">Deadline:</span>
-                <span className="ml-1">{deadlineDate.toLocaleDateString()}</span>
+                <span className="ml-1 font-mono text-xs">{deadlineDate.toLocaleDateString()}</span>
               </div>
             )}
             {deadlineDate && relativeDeadline && (
-              <div className="flex items-center text-gray-700">
-                <Clock className="h-4 w-4 mr-2 text-gray-500" />
+              <div className="flex items-center text-muted-foreground">
+                <Clock className="h-4 w-4 mr-2 text-muted-foreground/70" />
                 <span className="font-medium">Status:</span>
-                <span className="ml-1">{relativeDeadline}</span>
+                <span className={`ml-1 font-medium ${
+                  isDeadlinePassed ? 'text-destructive' : 
+                  relativeDeadline.includes('today') || relativeDeadline.includes('tomorrow') ? 'text-orange-600' : 
+                  'text-green-600'
+                }`}>
+                  {relativeDeadline}
+                </span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Action Buttons Section */}
-        <div className="space-y-4 pt-2">
-          <Link href={`/apply/${task.id}`}>
-            <Button variant="outline" size="sm" className="w-full h-10 font-medium">
+        {/* Status Message Section */}
+        {getStatusMessage()}
+      </CardContent>
+
+      {/* Card Footer */}
+      <CardFooter className="pt-4 border-t bg-muted/30">
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-2">
+          <Link href={`/apply/${task.id}`} className="block">
+            <Button variant="outline" size="sm" className="w-full h-10 font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
               <Eye className="h-4 w-4 mr-2" />
-              View Full Details
+              <span className="hidden sm:inline">View Full Details</span>
+              <span className="sm:hidden">View Details</span>
+              <ExternalLink className="h-3 w-3 ml-2" />
             </Button>
           </Link>
           
           {getActionButton()}
         </div>
-
-        {/* Status Message Section */}
-        <div className="pt-2">
-          {getStatusMessage()}
-        </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   )
 }

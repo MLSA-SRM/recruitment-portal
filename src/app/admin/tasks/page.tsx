@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AdminLayout } from '@/components/admin-layout'
 import MarkdownRenderer from '@/components/markdown-renderer'
+import { deleteTask } from '@/app/actions'
 import { 
   Plus, 
   Edit, 
@@ -17,7 +21,12 @@ import {
   Target,
   Clock,
   TrendingUp,
-  FileText
+  FileText,
+  Search,
+  Filter,
+  Check,
+  ChevronsUpDown,
+  X
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -39,9 +48,13 @@ export default function TasksPage() {
     updated_at: string | null
   }[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
-  const [selectedYear, setSelectedYear] = useState('')
+  const [selectedSubdomain, setSelectedSubdomain] = useState('')
+  const [selectedYear, setSelectedYear] = useState('all')
+  const [domainOpen, setDomainOpen] = useState(false)
+  const [subdomainOpen, setSubdomainOpen] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -49,6 +62,8 @@ export default function TasksPage() {
 
   const loadTasks = async () => {
     try {
+      setIsLoading(true)
+      setError(null)
       const supabase = createSupabaseClient()
       const { data, error } = await supabase
         .from('tasks')
@@ -59,6 +74,7 @@ export default function TasksPage() {
       setTasks(data || [])
     } catch (error) {
       console.error('Error loading tasks:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load tasks')
     } finally {
       setIsLoading(false)
     }
@@ -69,68 +85,8 @@ export default function TasksPage() {
       return
     }
 
-    console.log('Attempting to delete task:', taskId)
-
     try {
-      const supabase = createSupabaseClient()
-      
-      // Check if user is authenticated
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) {
-        console.error('Authentication error:', authError)
-        throw new Error('User not authenticated')
-      }
-      
-      console.log('User authenticated:', user.id)
-      
-      // Check if user is admin
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single()
-      
-      if (profileError) {
-        console.error('Profile fetch error:', profileError)
-        throw new Error('Failed to fetch user profile')
-      }
-      
-      console.log('User profile:', profile)
-      
-      if (!profile?.is_admin) {
-        throw new Error('Unauthorized: Admin access required')
-      }
-      
-      // Test: Try to read the task first
-      console.log('Testing task read access...')
-      const { data: taskData, error: readError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single()
-      
-      if (readError) {
-        console.error('❌ Task read error:', readError)
-        throw new Error(`Cannot read task: ${readError.message}`)
-      }
-      
-      console.log('✅ Task read successful:', taskData)
-      
-      // Delete the task directly using Supabase client
-      console.log('🗑️ Attempting to delete task from database...')
-      const { error, count } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId)
-
-      console.log('Delete result:', { error, count })
-
-      if (error) {
-        console.error('❌ Supabase delete error:', error)
-        throw new Error(error.message)
-      }
-
-      console.log('✅ Task deleted successfully')
+      await deleteTask(taskId)
       
       // Reload tasks after deletion
       await loadTasks()
@@ -152,10 +108,22 @@ export default function TasksPage() {
       task.subdomain?.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesDomain = selectedDomain === '' || task.domain === selectedDomain
-    const matchesYear = selectedYear === '' || task.target_year.toString() === selectedYear
+    const matchesSubdomain = selectedSubdomain === '' || task.subdomain === selectedSubdomain
+    const matchesYear = selectedYear === '' || selectedYear === 'all' || task.target_year.toString() === selectedYear
     
-    return matchesSearch && matchesDomain && matchesYear
+    return matchesSearch && matchesDomain && matchesSubdomain && matchesYear
   })
+
+  // Get available subdomains based on selected domain
+  const availableSubdomains = selectedDomain ? (DOMAIN_SUBDOMAINS[selectedDomain as keyof typeof DOMAIN_SUBDOMAINS] || []) : []
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedDomain('')
+    setSelectedSubdomain('')
+    setSelectedYear('all')
+  }
 
 
 
@@ -183,17 +151,17 @@ export default function TasksPage() {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Task Management</h1>
-          <p className="text-lg text-gray-600 mt-2">
+            <h1 className="text-4xl font-black tracking-tight text-gray-900">Task Management</h1>
+            <p className="text-xl text-gray-600 mt-3 font-light leading-relaxed">
             Create, manage, and monitor all recruitment tasks
           </p>
         </div>
         <Link href="/admin/tasks/create">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-200">
             <Plus className="h-5 w-5 mr-2" />
             Create New Task
           </Button>
@@ -201,76 +169,232 @@ export default function TasksPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">Search & Filter Tasks</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search tasks by title, description, or domain..."
+                placeholder="Search tasks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-md"
+                className="pl-10"
           />
         </div>
-        <div className="flex gap-4">
-          <select
-            value={selectedDomain}
-            onChange={(e) => setSelectedDomain(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Domains</option>
+
+            {/* Domain Combobox */}
+            <Popover open={domainOpen} onOpenChange={setDomainOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={domainOpen}
+                  className="justify-between"
+                >
+                  {selectedDomain || "All Domains"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search domains..." />
+                  <CommandList>
+                    <CommandEmpty>No domain found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value=""
+                        onSelect={() => {
+                          setSelectedDomain("")
+                          setSelectedSubdomain("")
+                          setDomainOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedDomain === "" ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        All Domains
+                      </CommandItem>
             {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
-              <option key={domain} value={domain}>{domain}</option>
-            ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Years</option>
-            <option value="1">1st Year</option>
-            <option value="2">2nd Year</option>
-          </select>
+                        <CommandItem
+                          key={domain}
+                          value={domain}
+                          onSelect={() => {
+                            setSelectedDomain(domain === selectedDomain ? "" : domain)
+                            setSelectedSubdomain("")
+                            setDomainOpen(false)
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedDomain === domain ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          {domain}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Subdomain Combobox */}
+            <Popover open={subdomainOpen} onOpenChange={setSubdomainOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={subdomainOpen}
+                  className="justify-between"
+                  disabled={!selectedDomain}
+                >
+                  {selectedSubdomain || "All Subdomains"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0">
+                <Command>
+                  <CommandInput placeholder="Search subdomains..." />
+                  <CommandList>
+                    <CommandEmpty>No subdomain found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value=""
+                        onSelect={() => {
+                          setSelectedSubdomain("")
+                          setSubdomainOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedSubdomain === "" ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        All Subdomains
+                      </CommandItem>
+                      {availableSubdomains.map((subdomain: string) => (
+                        <CommandItem
+                          key={subdomain}
+                          value={subdomain}
+                          onSelect={() => {
+                            setSelectedSubdomain(subdomain === selectedSubdomain ? "" : subdomain)
+                            setSubdomainOpen(false)
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedSubdomain === subdomain ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          {subdomain}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Year Select */}
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Years" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                <SelectItem value="1">1st Year</SelectItem>
+                <SelectItem value="2">2nd Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Filters & Clear Button */}
+          {(searchTerm || selectedDomain || selectedSubdomain || (selectedYear && selectedYear !== 'all')) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Active filters:</span>
+              {searchTerm && (
+                <Badge variant="secondary" className="gap-1">
+                  Search: {searchTerm}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchTerm('')} />
+                </Badge>
+              )}
+              {selectedDomain && (
+                <Badge variant="secondary" className="gap-1">
+                  Domain: {selectedDomain}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => {
+                    setSelectedDomain('')
+                    setSelectedSubdomain('')
+                  }} />
+                </Badge>
+              )}
+              {selectedSubdomain && (
+                <Badge variant="secondary" className="gap-1">
+                  Subdomain: {selectedSubdomain}
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSubdomain('')} />
+                </Badge>
+              )}
+              {selectedYear && selectedYear !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  Year: {selectedYear === '1' ? '1st' : '2nd'} Year
+                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedYear('all')} />
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear All
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
+      </Card>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                <p className="text-3xl font-bold text-gray-900">{filteredTasks.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+                  <p className="text-3xl font-bold text-foreground">{filteredTasks.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">All tasks</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
                 <FileText className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+          <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Tasks</p>
-                <p className="text-3xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
+                  <p className="text-3xl font-bold text-green-600">
                   {filteredTasks.filter(task => new Date(task.deadline || '') > new Date()).length}
                 </p>
+                  <p className="text-xs text-muted-foreground mt-1">Currently active</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                 <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+          <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Due This Week</p>
-                <p className="text-3xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Due This Week</p>
+                  <p className="text-3xl font-bold text-orange-600">
                   {tasks?.filter(task => {
                     const deadline = new Date(task.deadline || '')
                     const today = new Date()
@@ -278,24 +402,26 @@ export default function TasksPage() {
                     return daysUntilDeadline >= 0 && daysUntilDeadline <= 7
                   }).length || 0}
                 </p>
+                  <p className="text-xs text-muted-foreground mt-1">Urgent deadlines</p>
               </div>
-              <div className="p-3 bg-orange-100 rounded-full">
+                <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
                 <Clock className="h-6 w-6 text-orange-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+          <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Overdue</p>
+                  <p className="text-sm font-medium text-muted-foreground">Overdue</p>
                 <p className="text-3xl font-bold text-red-600">
                   {tasks?.filter(task => new Date(task.deadline || '') < new Date()).length || 0}
                 </p>
+                  <p className="text-xs text-muted-foreground mt-1">Need attention</p>
               </div>
-              <div className="p-3 bg-red-100 rounded-full">
+                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-red-600" />
               </div>
             </div>
@@ -309,18 +435,40 @@ export default function TasksPage() {
       {isLoading && (
         <Card className="text-center py-12">
           <CardContent>
-            <div className="text-gray-400 text-6xl mb-4">⏳</div>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading Tasks...</h3>
             <p className="text-gray-600">Please wait while we fetch your tasks.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <Card className="text-center py-12 border-red-200 bg-red-50">
+            <CardContent>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="text-red-500 text-6xl">⚠️</div>
+                <div>
+                  <h3 className="text-xl font-semibold text-red-900 mb-2">Error Loading Tasks</h3>
+                  <p className="text-red-700 mb-4">{error}</p>
+                  <Button onClick={loadTasks} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                    Try Again
+                  </Button>
+                </div>
+              </div>
           </CardContent>
         </Card>
       )}
 
       {/* Tasks List */}
-      {!isLoading && filteredTasks.length > 0 ? (
+        {!isLoading && !error && filteredTasks.length > 0 ? (
         <div className="grid gap-6">
           {filteredTasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-lg transition-shadow">
+              <Card key={task.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.01] border-l-4 border-l-blue-500">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 space-y-4">
@@ -391,13 +539,13 @@ export default function TasksPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Link href={`/admin/tasks/${task.id}`}>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300 transition-colors">
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
                         </Link>
                         <Link href={`/admin/tasks/${task.id}/edit`}>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="hover:bg-green-50 hover:border-green-300 transition-colors">
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
@@ -405,7 +553,7 @@ export default function TasksPage() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300 transition-colors"
                           onClick={() => handleDeleteTask(task.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
@@ -419,7 +567,7 @@ export default function TasksPage() {
             </Card>
           ))}
         </div>
-      ) : !isLoading && (
+        ) : !isLoading && !error && (
         <Card className="text-center py-12">
           <CardContent>
             {filteredTasks.length === 0 && tasks.length > 0 ? (
@@ -430,11 +578,7 @@ export default function TasksPage() {
                   No tasks match your current search criteria. Try adjusting your filters.
                 </p>
                 <Button 
-                  onClick={() => {
-                    setSearchTerm('')
-                    setSelectedDomain('')
-                    setSelectedYear('')
-                  }}
+                  onClick={clearFilters}
                   variant="outline"
                 >
                   Clear Filters

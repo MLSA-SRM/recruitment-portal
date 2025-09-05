@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Clock, Target, FileText, AlertCircle, ArrowLeft, ClipboardList, Image as ImageIcon, Maximize2, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
@@ -23,9 +25,9 @@ export default function EditTaskPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    domain: '',
-    subdomain: '',
-    target_year: '',
+    domain: 'none',
+    subdomain: 'none',
+    target_year: 'all',
     deadline: '',
     estimated_duration: '',
     requirements: '',
@@ -61,9 +63,9 @@ export default function EditTaskPage() {
         setFormData({
           title: task.title || '',
           description: task.description || '',
-          domain: task.domain || '',
-          subdomain: task.subdomain || '',
-          target_year: task.target_year?.toString() || '',
+          domain: task.domain || 'none',
+          subdomain: task.subdomain || 'none',
+          target_year: task.target_year?.toString() || 'all',
           deadline: deadline,
           estimated_duration: task.estimated_duration || calculateEstimatedDuration(deadline),
           requirements: task.requirements || '',
@@ -181,9 +183,9 @@ export default function EditTaskPage() {
     const newErrors: Record<string, string> = {}
     
     if (!formData.title.trim()) newErrors.title = 'Task title is required'
-    if (!formData.domain) newErrors.domain = 'Domain is required'
-    if (!formData.subdomain) newErrors.subdomain = 'Subdomain is required'
-    if (!formData.target_year) newErrors.target_year = 'Target year is required'
+    if (!formData.domain || formData.domain === 'none') newErrors.domain = 'Domain is required'
+    if (!formData.subdomain || formData.subdomain === 'none') newErrors.subdomain = 'Subdomain is required'
+    if (!formData.target_year || formData.target_year === 'all') newErrors.target_year = 'Target year is required'
     if (!formData.deadline) newErrors.deadline = 'Deadline is required'
     if (!formData.description.trim()) newErrors.description = 'Description is required'
     
@@ -241,7 +243,7 @@ export default function EditTaskPage() {
   }
 
   const getSubdomainOptions = () => {
-    if (!formData.domain) return []
+    if (!formData.domain || formData.domain === 'none') return []
     return DOMAIN_SUBDOMAINS[formData.domain as Domain] || []
   }
 
@@ -350,22 +352,24 @@ export default function EditTaskPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Domain *</label>
-                <select 
-                  value={formData.domain}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                    handleInputChange('domain', e.target.value)
-                    handleInputChange('subdomain', '') // Reset subdomain when domain changes
+                <Label htmlFor="domain" className="text-sm font-medium text-gray-700">Domain *</Label>
+                <Select 
+                  value={formData.domain} 
+                  onValueChange={(value) => {
+                    handleInputChange('domain', value)
+                    handleInputChange('subdomain', 'none') // Reset subdomain when domain changes
                   }}
-                  className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.domain ? 'border-red-500' : 'border-gray-300'
-                  }`}
                 >
-                  <option value="">Select Domain</option>
-                  {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
-                    <option key={domain} value={domain}>{domain}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className={errors.domain ? 'border-red-500 focus:ring-red-500' : ''}>
+                    <SelectValue placeholder="Select Domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select Domain</SelectItem>
+                    {Object.keys(DOMAIN_SUBDOMAINS).map((domain) => (
+                      <SelectItem key={domain} value={domain}>{domain}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.domain && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
@@ -375,20 +379,26 @@ export default function EditTaskPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Subdomain *</label>
-                <select 
-                  value={formData.subdomain}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('subdomain', e.target.value)}
-                  disabled={!formData.domain}
-                  className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.subdomain ? 'border-red-500' : 'border-gray-300'
-                  } ${!formData.domain ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                <Label htmlFor="subdomain" className="text-sm font-medium text-gray-700">Subdomain *</Label>
+                <Select 
+                  value={formData.subdomain} 
+                  onValueChange={(value) => handleInputChange('subdomain', value)}
+                  disabled={!formData.domain || formData.domain === 'none'}
                 >
-                  <option value="">Select Subdomain</option>
-                  {getSubdomainOptions().map((subdomain) => (
-                    <option key={subdomain} value={subdomain}>{subdomain}</option>
-                  ))}
-                </select>
+                  <SelectTrigger 
+                    className={`${errors.subdomain ? 'border-red-500 focus:ring-red-500' : ''} ${
+                      !formData.domain || formData.domain === 'none' ? 'bg-gray-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <SelectValue placeholder="Select Subdomain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select Subdomain</SelectItem>
+                    {getSubdomainOptions().map((subdomain) => (
+                      <SelectItem key={subdomain} value={subdomain}>{subdomain}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.subdomain && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
@@ -399,18 +409,19 @@ export default function EditTaskPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Target Year *</label>
-              <select 
-                value={formData.target_year}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('target_year', e.target.value)}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.target_year ? 'border-red-500' : 'border-gray-300'
-                }`}
+              <Label htmlFor="target_year" className="text-sm font-medium text-gray-700">Target Year *</Label>
+              <Select 
+                value={formData.target_year} 
+                onValueChange={(value) => handleInputChange('target_year', value)}
               >
-                <option value="">Select Year</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-              </select>
+                <SelectTrigger className={errors.target_year ? 'border-red-500 focus:ring-red-500' : ''}>
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1st Year</SelectItem>
+                  <SelectItem value="2">2nd Year</SelectItem>
+                </SelectContent>
+              </Select>
               {errors.target_year && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="h-4 w-4" />

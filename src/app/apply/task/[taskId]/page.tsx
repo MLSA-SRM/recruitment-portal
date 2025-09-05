@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar, Clock, CheckCircle, AlertCircle, Edit, ArrowLeft, FileText, Target, Users } from 'lucide-react'
-import { canSubmitToTask } from '@/app/actions'
+// Removed direct import of server action
 import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
@@ -60,7 +60,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
 
     const fetchSubmissionStatus = async () => {
       try {
-        const status = await canSubmitToTask(Number(taskId))
+        const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch submission status')
+        }
+        const status = await response.json()
         setSubmissionStatus(status)
       } catch (error) {
         console.error('Error fetching submission status:', error)
