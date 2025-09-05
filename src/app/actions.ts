@@ -4,7 +4,6 @@ import { createSupabaseServer } from '@/lib/supabase'
 import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS } from '@/lib/ai'
 import { Octokit } from 'octokit'
 import * as cheerio from 'cheerio'
-import Papa from 'papaparse'
 import { z } from 'zod'
 import env from '@/env'
 import { aiRateLimiter } from '@/lib/rate-limiter'
@@ -113,7 +112,15 @@ async function performAIReview(opts: {
 }) {
   const { supabase, submissionId, taskId, userId, submissionUrl, submissionData, context } = opts
 
-  console.log(`[AI][${context}] performAIReview called`, { submissionId, taskId, userId, url: submissionUrl })
+  console.log(`[AI][${context}] performAIReview called`, { 
+    submissionId, 
+    taskId, 
+    userId, 
+    url: submissionUrl,
+    hasSubmissionData: !!submissionData,
+    submissionDataKeys: submissionData ? Object.keys(submissionData) : [],
+    submissionDataPreview: submissionData ? JSON.stringify(submissionData, null, 2).slice(0, 500) : 'null'
+  })
 
   const { data: task } = await supabase
     .from('tasks')
@@ -123,10 +130,14 @@ async function performAIReview(opts: {
   const { data: profile } = await supabase.from('profiles').select('year').eq('id', userId).single()
 
   // Set in-progress message
-  await supabase.from('submissions').update({ 
+  const { error: progressError } = await supabase.from('submissions').update({ 
     ai_score: null, 
     ai_review: context === 'edit' ? 'AI review in progress... (submission was updated)' : 'AI review in progress...'
   }).eq('id', submissionId)
+  
+  if (progressError) {
+    console.error(`[AI][${context}] Failed to set progress message:`, progressError)
+  }
 
   // Build content and prompt from all submission data
   let content = ''
@@ -137,11 +148,29 @@ async function performAIReview(opts: {
   const submissionContent: string[] = []
   
   if (submissionData && Object.keys(submissionData).length > 0) {
+    console.log(`[AI][${context}] Processing submission data:`, {
+      keys: Object.keys(submissionData),
+      dataStructure: Object.entries(submissionData).map(([key, value]) => {
+        const fieldInfo = value as { value?: unknown; type?: string; label?: string }
+        return {
+          key,
+          hasValue: 'value' in fieldInfo,
+          hasType: 'type' in fieldInfo,
+          hasLabel: 'label' in fieldInfo,
+          valueType: typeof fieldInfo?.value,
+          valuePreview: String(fieldInfo?.value || '').slice(0, 100)
+        }
+      })
+    })
+    
     submissionContent.push('## Submission Information:')
-    Object.entries(submissionData).forEach(([, fieldInfo]) => {
+    Object.entries(submissionData).forEach(([fieldName, fieldInfo]) => {
+      console.log(`[AI][${context}] Processing field ${fieldName}:`, fieldInfo)
+      
       if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { value, type, label } = fieldInfo as any
+        const { value, type, label } = fieldInfo as { value: unknown; type: string; label: string }
+        
+        console.log(`[AI][${context}] Field ${fieldName} details:`, { value, type, label })
         
         if (type === 'url' && typeof value === 'string') {
           submissionContent.push(`**${label}:** ${value}`)
@@ -154,11 +183,18 @@ async function performAIReview(opts: {
         } else if (type === 'checkbox') {
           const checkboxValue = Array.isArray(value) ? value.join(', ') : value
           submissionContent.push(`**${label}:** ${checkboxValue}`)
-        } else if (type === 'file' && typeof value === 'object') {
-          submissionContent.push(`**${label}:** File uploaded - ${value.name} (${value.type}, ${Math.round(value.size / 1024)}KB)`)
+        } else if (type === 'file' && typeof value === 'object' && value !== null) {
+          const fileInfo = value as { name?: string; type?: string; size?: number }
+          submissionContent.push(`**${label}:** File uploaded - ${fileInfo.name || 'Unknown'} (${fileInfo.type || 'Unknown'}, ${fileInfo.size ? Math.round(fileInfo.size / 1024) : 0}KB)`)
+        } else {
+          console.log(`[AI][${context}] Unhandled field type ${type} for field ${fieldName}`)
         }
+      } else {
+        console.log(`[AI][${context}] Invalid field structure for ${fieldName}:`, fieldInfo)
       }
     })
+  } else {
+    console.log(`[AI][${context}] No submission data or empty submission data:`, submissionData)
   }
 
   try {
@@ -206,20 +242,46 @@ async function performAIReview(opts: {
     }
     
     // Check if we have any content from submission fields
+    // submissionContent starts with a header, so we need at least 2 items (header + 1 field)
     if (submissionContent.length > 1) { // More than just the header
       hasValidContent = true
+      console.log(`[AI][${context}] Valid content found from submission fields: ${submissionContent.length - 1} fields`)
+    } else {
+      console.log(`[AI][${context}] No valid content from submission fields: ${submissionContent.length} items`)
     }
     
     content = submissionContent.join('\n\n')
     
+    console.log(`[AI][${context}] Content built:`, {
+      contentLength: content.length,
+      hasValidContent,
+      submissionContentLength: submissionContent.length,
+      contentPreview: content.slice(0, 500),
+      taskDomain: task?.domain
+    })
+    
     if (hasValidContent) {
       if (task?.domain === 'Corporate') {
         prompt = PROMPTS.corporate(content)
+      } else if (task?.domain === 'Creatives') {
+        // Skip AI for Creatives; manual review only
+        const { error: skipCreativesError } = await supabase.from('submissions').update({
+          ai_score: 0,
+          ai_review: 'AI review skipped: Creatives submissions are manually reviewed. No AI score assigned.',
+          ai_recommendation: 'neutral'
+        }).eq('id', submissionId)
+        if (skipCreativesError) {
+          console.error(`[AI][${context}] Failed to write creatives skip message:`, skipCreativesError)
+        }
+        return
       } else {
         const isFirstYear = (profile?.year ?? 1) <= 1
         const taskType = task?.subdomain || 'General'
         prompt = isFirstYear ? PROMPTS.tech_first_year(content, taskType) : PROMPTS.tech_second_year(content, taskType)
       }
+      console.log(`[AI][${context}] Prompt generated, length: ${prompt.length}`)
+    } else {
+      console.log(`[AI][${context}] No valid content found, skipping prompt generation`)
     }
   } catch (e) {
     console.error(`[AI][${context}] Content fetch failed:`, e)
@@ -227,10 +289,14 @@ async function performAIReview(opts: {
 
   if (!hasValidContent || !prompt.trim()) {
     console.log(`[AI][${context}] No valid content/prompt; writing skip message`)
-    await supabase.from('submissions').update({
+    const { error: skipError } = await supabase.from('submissions').update({
       ai_score: 0,
       ai_review: 'AI review skipped: No valid content to analyze. Please provide sufficient details in the form fields.'
     }).eq('id', submissionId)
+    
+    if (skipError) {
+      console.error(`[AI][${context}] Failed to write skip message:`, skipError)
+    }
     return
   }
 
@@ -270,12 +336,23 @@ CONSTRAINTS:
       const withBanner = banner + parsed.review
       const MAX_REVIEW_CHARS = 4000
       const trimmedReview = withBanner.length > MAX_REVIEW_CHARS ? withBanner.slice(0, MAX_REVIEW_CHARS) + '\n\n…(trimmed)' : withBanner
-      await supabase.from('submissions').update({ 
+      const { error: updateError } = await supabase.from('submissions').update({ 
         ai_score: parsed.score, 
         ai_review: trimmedReview,
         ai_recommendation: recommendation
       }).eq('id', submissionId)
-      console.log(`[AI][${context}] AI review stored`, { submissionId, score: parsed.score, recommendation })
+      
+      if (updateError) {
+        console.error(`[AI][${context}] Database update failed:`, updateError)
+        throw updateError
+      }
+      
+      console.log(`[AI][${context}] AI review stored successfully`, { 
+        submissionId, 
+        score: parsed.score, 
+        recommendation,
+        reviewLength: trimmedReview.length
+      })
       return
     }
     throw new Error('Invalid AI response structure')
@@ -287,16 +364,24 @@ CONSTRAINTS:
         await retryAIReview(submissionId, prompt, supabase)
       } catch (retryError) {
         console.error(`[AI][${context}] Retry failed:`, retryError)
-        await supabase.from('submissions').update({ 
+        const { error: retryUpdateError } = await supabase.from('submissions').update({ 
           ai_score: 0, 
           ai_review: `AI review failed after retry. Error: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`
         }).eq('id', submissionId)
+        
+        if (retryUpdateError) {
+          console.error(`[AI][${context}] Failed to update retry error:`, retryUpdateError)
+        }
       }
     }, retryDelay)
-    await supabase.from('submissions').update({ 
+    const { error: tempError } = await supabase.from('submissions').update({ 
       ai_score: 0, 
       ai_review: 'AI review temporarily unavailable; retry scheduled in 1 minute.'
     }).eq('id', submissionId)
+    
+    if (tempError) {
+      console.error(`[AI][${context}] Failed to set temporary message:`, tempError)
+    }
   }
 }
 
@@ -422,7 +507,9 @@ export async function handleSubmission(formData: FormData) {
 
   ;(async () => {
     await aiRateLimiter.execute(async () => {
-      await performAIReview({ supabase, submissionId: submission!.id, taskId, userId, submissionUrl: '', submissionData, context: 'new' })
+      // Create a fresh supabase instance for the background process
+      const backgroundSupabase = await createSupabaseServer()
+      await performAIReview({ supabase: backgroundSupabase, submissionId: submission!.id, taskId, userId, submissionUrl: '', submissionData, context: 'new' })
     })
   })()
 
@@ -521,7 +608,13 @@ const createTaskSchema = z.object({
   domain: z.string().min(1),
   subdomain: z.string().min(1),
   target_year: z.coerce.number().int().positive(),
-  deadline: z.string().min(1),
+  deadline: z.string().min(1).transform((val) => {
+    // If it's a date-only input, set time to 23:59 (end of day)
+    if (val && !val.includes('T')) {
+      return `${val}T23:59`
+    }
+    return val
+  }),
   estimated_duration: z.string().optional().default(''),
   requirements: z.string().optional().default(''),
   deliverables: z.string().optional().default(''),
@@ -774,7 +867,9 @@ export async function updateSubmission(formData: FormData) {
   
   ;(async () => {
     await aiRateLimiter.execute(async () => {
-      await performAIReview({ supabase, submissionId, taskId, userId, submissionUrl: '', submissionData, context: 'edit' })
+      // Create a fresh supabase instance for the background process
+      const backgroundSupabase = await createSupabaseServer()
+      await performAIReview({ supabase: backgroundSupabase, submissionId, taskId, userId, submissionUrl: '', submissionData, context: 'edit' })
     })
   })()
 
@@ -890,11 +985,18 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
 
   const { data: row, error } = await supabase
     .from('submissions')
-    .select('id, task_id, applicant_id, submission_data')
+    .select('id, task_id, applicant_id, submission_data, submission_url')
     .eq('id', submissionId)
     .single()
 
   if (error || !row) throw new Error('Submission not found')
+  
+  console.log(`[AI][trigger] Retrieved submission data for ID ${submissionId}:`, {
+    submissionData: row.submission_data,
+    submissionUrl: row.submission_url,
+    hasSubmissionData: !!row.submission_data,
+    submissionDataKeys: row.submission_data ? Object.keys(row.submission_data) : []
+  })
   
   // Allow submission owner or admin to trigger review
   const isAdmin = await isCurrentUserAdmin()
@@ -906,12 +1008,14 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
   setTimeout(async () => {
     try {
       await aiRateLimiter.execute(async () => {
+        // Create a fresh supabase instance for the background process
+        const backgroundSupabase = await createSupabaseServer()
         await performAIReview({
-          supabase,
+          supabase: backgroundSupabase,
           submissionId: row.id,
           taskId: row.task_id as number,
           userId: row.applicant_id as string,
-          submissionUrl: '',
+          submissionUrl: row.submission_url || '',
           submissionData: row.submission_data as Record<string, unknown>,
           context: 'edit'
         })

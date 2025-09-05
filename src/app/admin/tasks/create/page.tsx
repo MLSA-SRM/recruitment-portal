@@ -72,7 +72,15 @@ export default function CreateTaskPage() {
       
       // Auto-calculate estimated duration when deadline changes
       if (field === 'deadline') {
-        newData.estimated_duration = calculateEstimatedDuration(value)
+        // If it's a date-only input, set time to 23:59 (end of day)
+        if (value && !value.includes('T')) {
+          const dateOnly = value
+          const endOfDay = `${dateOnly}T23:59`
+          newData.deadline = endOfDay
+          newData.estimated_duration = calculateEstimatedDuration(endOfDay)
+        } else {
+          newData.estimated_duration = calculateEstimatedDuration(value)
+        }
       }
       
       return newData
@@ -434,10 +442,10 @@ export default function CreateTaskPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Deadline *</label>
                 <Input 
-                  type="date"
+                  type="datetime-local"
                   value={formData.deadline}
                   onChange={(e) => handleInputChange('deadline', e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date().toISOString().slice(0, 16)}
                   className={errors.deadline ? 'border-red-500 focus:ring-red-500' : ''}
                 />
                 {errors.deadline && (

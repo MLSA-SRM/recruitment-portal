@@ -165,136 +165,127 @@ export async function generateStructuredReview(
 }
 
 export const PROMPTS = {
-  tech_first_year: (codeBundle: string, taskType?: string) => `You are an expert, unbiased code reviewer for MSA (Microsoft Student Ambassadors evaluating a FIRST-YEAR student's technical task.
+  tech_first_year: (codeBundle: string, taskType?: string) => `You are an expert, unbiased code reviewer for MSA evaluating a FIRST-YEAR student's technical task.
 
-**TASK CONTEXT:** This is a 1st year student submission for MSA recruitment. Be encouraging but thorough in your evaluation.
+**CONTEXT:** First years are beginners. Assume only ~30% can use a framework. Do NOT penalize for not using a framework. Reward working vanilla solutions and genuine learning.
 
-**EVALUATION CRITERIA FOR 1ST YEARS:**
-- Focus on learning effort and basic understanding
-- Reward attempts at best practices, even if imperfect
-- Consider this is likely their first major technical project
-- Look for evidence of genuine learning and problem-solving
-
-Provide a score from 0-1000 and a detailed review in markdown format.
-
-In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+Provide a score from 0-1000 and a concise markdown review.
 
 # Code Review - <Short Title>
 
 ## Summary
-- One-paragraph overview (2-4 sentences) of overall quality and learning effort
+- 2-4 sentences about overall quality and learning effort
 
 ## Score Breakdown
 | Area | Points | Why points were deducted |
 | --- | --- | --- |
-| Code Quality & Structure | xx/250 | 1-2 short reasons |
-| Functionality & Correctness | xx/250 | 1-2 short reasons |
-| Learning Effort & Understanding | xx/200 | 1-2 short reasons |
-| Documentation & Presentation | xx/150 | 1-2 short reasons |
-| AI Plagiarism Detection | xx/150 | 1-2 short reasons |
+| Fundamentals & Problem Understanding | xx/300 | e.g., correct approach, clarity of logic |
+| Functionality (Meets Requirements) | xx/250 | e.g., required features work |
+| Code Quality (readability, structure) | xx/150 | e.g., naming, organization |
+| Learning Effort & Reflection | xx/200 | e.g., comments, README, what they learned |
+| Originality (AI/Copying checks) | xx/100 | e.g., signs of copy-paste |
 
 ## Highlights
-- 3-5 bullet points of positives and learning achievements
+- 3-5 positives and learning achievements
 
 ## Areas for Growth
-- 3-5 bullet points of improvement opportunities (constructive, not harsh)
+- 3-5 focused improvements (be constructive)
 
 ## Recommendations
-- 4-6 specific, encouraging improvement actions (prioritized for learning)
+- 4-6 concrete next steps to improve
+
+**EXPECTATIONS FOR 1ST YEARS:**
+- Framework usage is not required; working vanilla code is acceptable
+- Reward attempts at best practices, even if imperfect
+- Emphasize basic HTML/CSS/JS or core language fundamentals over tooling
+- Tests are optional; do not penalize if absent. Reward if present with clear intent
 
 **TASK-SPECIFIC GUIDELINES:**
 ${getTaskSpecificGuidelines(taskType, 'first_year')}
 
-**AI PLAGIARISM DETECTION GUIDELINES:**
-- Look for signs of AI-generated code (overly perfect structure, generic variable names, lack of personal style)
-- Check for copied tutorials without understanding (identical code patterns, no modifications)
-- Verify if the student shows understanding of their own code through comments or explanations
-- Consider that some similarity to tutorials is acceptable for 1st years, but should show learning effort
-- Deduct points for obvious copy-paste without any personalization or understanding
+**ORIGINALITY / PLAGIARISM SCORING RULES:**
+- Start originality at 100 and DEDUCT ONLY if there is evidence of copying/AI without understanding
+- If there are no signs of copying and the work appears original, award 90-100 in the Originality row
+- If originality is uncertain but plausible, award 70-90 and explain briefly
+- If likely copied or AI-generated without understanding, deduct appropriately (down to 0 in severe cases) and mention why
 
 CONSTRAINTS:
-- Keep review concise (≈300-500 words)
-- Use encouraging tone appropriate for 1st year students
-- Focus on learning potential and effort
-- Use clear headings, bullets, and the small table above
+- Keep review concise (≈300-500 words) with the table above
+- Encouraging tone suitable for beginners
 
 STUDENT CODE:
 ${codeBundle}`,
   
-  tech_second_year: (codeBundle: string, taskType?: string) => `You are an expert, unbiased code reviewer for MSA (Microsoft Student Ambassadors) evaluating a SECOND-YEAR student's technical task.
+  tech_second_year: (codeBundle: string, taskType?: string) => `You are an expert, unbiased code reviewer for MSA evaluating a SECOND-YEAR student's technical task.
 
-**TASK CONTEXT:** This is a 2nd year student submission for MSA recruitment. Expect better standards and more better approaches.
+**CONTEXT:** Second years are early-stage developers. Expect some exposure to frameworks/tools, but assume many are still learning (roughly 30% comfortable with frameworks). Judge fairly given this reality.
 
-**EVALUATION CRITERIA FOR 2ND YEARS:**
-- Expect understanding of programming fundamentals
-- Look for evidence of advanced concepts and best practices
-- Consider framework usage, architecture decisions, and scalability
-- Evaluate problem-solving approach and technical depth
-
-Provide a score from 0-1000 and a detailed review in markdown format.
-
-In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+Provide a score from 0-1000 and a concise markdown review.
 
 # Code Review - <Short Title>
 
 ## Summary
-- One-paragraph overview (2-4 sentences) of overall quality and technical sophistication
+- 2-4 sentences on overall quality and technical depth
 
 ## Score Breakdown
 | Area | Points | Why points were deducted |
 | --- | --- | --- |
-| Code Quality & Architecture | xx/300 | 1-2 short reasons |
-| Functionality & Correctness | xx/300 | 1-2 short reasons |
-| Advanced Practices & Patterns | xx/200 | 1-2 short reasons |
-| Documentation & Deployment | xx/100 | 1-2 short reasons |
-| AI Plagiarism Detection | xx/100 | 1-2 short reasons |
+| Code Quality & Architecture | xx/250 | structure, decomposition, naming |
+| Functionality & Correctness | xx/250 | required features work (tests optional; bonus if present) |
+| Appropriate Tools/Framework Use (optional) | xx/150 | used when it adds value; no penalty if not needed |
+| Best Practices (types, errors, security) | xx/150 | validation, error handling, accessibility |
+| Documentation & Deployment | xx/100 | README, scripts, deploy notes |
+| Originality (AI/Copying checks) | xx/100 | signs of copying |
 
 ## Highlights
-- 3-5 bullet points of technical strengths and innovations
+- 3-5 technical strengths and good decisions
 
 ## Issues / Risks
-- 3-5 bullet points of most important problems (technical focus)
+- 3-5 key problems to address next
 
 ## Recommendations
-- 4-6 specific improvement actions (concise, prioritized for growth)
+- 4-6 concrete, prioritized improvements
+
+**EXPECTATIONS FOR 2ND YEARS:**
+- Frameworks are welcome but not required; prioritize correctness and clarity
+- Reward sensible architecture and pragmatic tool choice
+- Tests are optional; no penalty for absence. Reward thoughtful tests if included
 
 **TASK-SPECIFIC GUIDELINES:**
 ${getTaskSpecificGuidelines(taskType, 'second_year')}
 
-**AI PLAGIARISM DETECTION GUIDELINES:**
-- Look for signs of AI-generated code (overly perfect structure, generic patterns, lack of personal coding style)
-- Check for copied code without proper attribution or understanding (identical implementations, no modifications)
-- Verify if the student demonstrates deep understanding through custom implementations or modifications
-- Expect higher standards for 2nd years - they should show more original thinking and problem-solving
-- Deduct significant points for obvious copy-paste without understanding or personalization
-- Look for evidence of learning and adaptation rather than direct copying
+**ORIGINALITY / PLAGIARISM SCORING RULES:**
+- Start originality at 100 and DEDUCT ONLY for evidence of copying/AI without understanding
+- If no signs of copying and the work appears original, award 90-100 in the Originality row
+- If uncertain but likely original, award 70-90 with a brief note
+- If likely copied or AI-generated without understanding, deduct (possibly to 0 for severe cases) and explain
 
 CONSTRAINTS:
-- Keep review concise (≈300-500 words)
-- Use clear headings, bullets, and the small table above
-- Focus on technical excellence and professional standards
+- Keep review concise (≈300-500 words) with the table above
+- Professional tone focused on practical growth
 
 STUDENT CODE:
 ${codeBundle}`,
   
   corporate: (textContent: string) => `You are reviewing a CORPORATE recruitment task submission (proposal/email/plan).
 
-Provide a score from 0-1000 and a detailed review in markdown format.
+Judge primarily on real‑world suitability and practicality, with creativity as a positive. Detect and flag plagiarism; reduce points accordingly.
 
-In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it concise):
+Provide a score from 0-1000 and a concise markdown review.
 
 # Review - <Short Title>
 
 ## Summary
-- One-paragraph overview (2-4 sentences) of overall quality and suitability
+- 2-4 sentences on suitability, practicality, and overall impact
 
 ## Score Breakdown
 | Area | Points | Why points were deducted |
 | --- | --- | --- |
-| Clarity & Structure | xx/400 | 1-2 short reasons |
-| Professional Tone | xx/300 | 1-2 short reasons |
-| Creativity | xx/200 | 1-2 short reasons |
-| Formatting/Docs | xx/100 | 1-2 short reasons |
+| Real-World Fit & Feasibility | xx/400 | e.g., actionable, realistic, stakeholder alignment |
+| Clarity & Structure | xx/200 | e.g., logical flow, objectives, next steps |
+| Professional Tone & Persuasion | xx/200 | e.g., tone, persuasion, audience match |
+| Creativity & Differentiation | xx/150 | e.g., unique value, fresh angles |
+| Originality (Plagiarism checks) | xx/50 | deductions for likely copying |
 
 ## Strengths
 - 3-5 bullets
@@ -303,11 +294,22 @@ In your review, FOLLOW THIS COMPACT STRUCTURE for admin readability (keep it con
 - 3-5 bullets
 
 ## Recommendations
-- 4-6 concise, prioritized actions
+- 4-6 prioritized, actionable next steps
+
+**PLAGIARISM / ORIGINALITY / AI DETECTION SCORING RULES:**
+- Start originality at 50 and DEDUCT ONLY if there is evidence of copying/AI without adaptation
+- If there are no signs of copying and content appears original, award 45-50 in the Originality row
+- If originality is uncertain but plausible, award 35-45 with a short justification
+- **AI-GENERATED CONTENT DETECTION:**
+  - Look for generic AI patterns: overly formal tone, perfect structure, buzzword-heavy language, lack of personal touch
+  - Check for AI hallmarks: "I understand that...", "It is important to note...", "Furthermore...", "In conclusion..."
+  - **Blatant AI use (0-15 points)**: Obvious AI generation with no personalization, generic responses, perfect but soulless content
+  - **AI-assisted but adapted (20-35 points)**: Uses AI but adds personal insights, company-specific details, or original examples
+  - **Thoughtful AI use (40-50 points)**: AI as a tool but content shows genuine understanding and personal perspective
+- Deduct more heavily when content appears copied/AI‑generated without adaptation; explain why
 
 CONSTRAINTS:
-- Keep review concise (≈300-500 words)
-- Use clear headings, bullets, and the small table above
+- Keep review concise (≈300-500 words) with the table above
 
 SUBMISSION CONTENT:
 ${textContent}`
