@@ -78,21 +78,21 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-3 gap-8 mt-20">
             <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 border-l-4 border-blue-500">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">Technical</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-lg text-justify">
               This is the brain of our club. From coding and cloud to AI and app development, the Technical team builds the backbone of our projects and events. They turn ideas into real solutions and make innovation happen.
               </p>
             </div>
             
             <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 border-l-4 border-purple-500">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">Corporate</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-lg text-justify">
               This is where strategy meets execution. The Corporate team manages partnerships, sponsorships, and outreach. They handle communications, collaborations, and ensure that every event runs like clockwork.
               </p>
             </div>
             
             <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 border-l-4 border-green-500">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">Creatives</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <p className="text-gray-600 leading-relaxed text-lg text-justify">
               The storytellers and designers of the club. The Creatives team takes care of branding, design, social media, and content. They make sure everything we do looks stunning and connects with people.
               </p>
             </div>

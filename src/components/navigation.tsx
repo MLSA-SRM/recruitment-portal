@@ -9,11 +9,11 @@ import { useEffect, useState } from 'react'
 import {
   BarChart3,
   FileText,
-  Plus,
   Briefcase,
   UserCheck,
   Menu,
-  X
+  X,
+  Plus, // eslint-disable-line @typescript-eslint/no-unused-vars
 } from 'lucide-react'
 
 export function Navigation() {
@@ -81,106 +81,109 @@ export function Navigation() {
   }
   
   return (
-    <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
+    <nav className="bg-white/90 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
-          <Link href="/" className="flex items-center space-x-3 group">
-            <Image 
-              src="/logo.svg" 
-              alt="MSA SRM" 
-              width={32}
-              height={32}
-              className="h-8 w-8 transition-transform group-hover:scale-110"
-            />
-            <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-              MSA SRM
-            </span>
-          </Link>
+          <div className="flex-shrink-0">
+            <Link href="/" className="flex items-center space-x-3 group">
+              <Image 
+                src="/logo.svg" 
+                alt="MSA SRM" 
+                width={32}
+                height={32}
+                className="h-8 w-8 transition-transform group-hover:scale-110"
+              />
+              <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                MSA SRM
+              </span>
+            </Link>
+          </div>
           
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-2 ml-auto">
+          <div className="hidden md:flex items-center space-x-1">
             {!user ? (
               // Not authenticated - show login/signup
-              <>
+              <div className="flex items-center space-x-2 ml-auto">
                 <Link href="/auth/signin">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="px-4">
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button>
+                  <Button size="sm" className="px-4">
                     Get Started
                   </Button>
                 </Link>
-              </>
+              </div>
             ) : !profile ? (
               // Authenticated but no profile - show profile setup
-              <>
+              <div className="flex items-center space-x-2">
                 <Link href="/profile/setup">
-                  <Button>
+                  <Button size="sm" className="px-4">
                     Complete Profile
                   </Button>
                 </Link>
-                <Button variant="ghost" onClick={handleSignOut} size="sm">
+                <Button variant="ghost" onClick={handleSignOut} size="sm" className="px-4">
                   Sign Out
                 </Button>
-              </>
+              </div>
             ) : (
               // Authenticated with profile - show appropriate navigation
-              <>
+              <div className="flex items-center space-x-1">
                 <Link href="/apply">
-                  <Button variant={isActive('/apply') ? 'default' : 'ghost'}>
-                    <Briefcase className="h-4 w-4 mr-2" />
+                  <Button 
+                    variant={isActive('/apply') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="px-3"
+                  >
+                    <Briefcase className="h-4 w-4 mr-1.5" />
                     Browse Tasks
                   </Button>
                 </Link>
                 <Link href="/dashboard">
-                  <Button variant={isActive('/dashboard') ? 'default' : 'ghost'}>
-                    <UserCheck className="h-4 w-4 mr-2" />
+                  <Button 
+                    variant={isActive('/dashboard') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="px-3"
+                  >
+                    <UserCheck className="h-4 w-4 mr-1.5" />
                     My Submissions
                   </Button>
                 </Link>
                 
-                {/* Admin Navigation Separator */}
-                {profile.is_admin && (
-                  <div className="w-px h-6 bg-gray-300 mx-2 transition-all duration-300 ease-in-out opacity-60 hover:opacity-100"></div>
-                )}
-                
+                {/* Admin Navigation */}
                 {profile.is_admin && (
                   <>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105 hover:bg-blue-100">
+                    <div className="w-px h-6 bg-gray-300 mx-2"></div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                         Admin
                       </span>
+                      <Link href="/admin/dashboard">
+                        <Button 
+                          variant={isActive('/admin/dashboard') ? 'default' : 'ghost'} 
+                          size="sm"
+                          className="px-3"
+                        >
+                          <BarChart3 className="h-4 w-4 mr-1.5" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                      <Link href="/admin/tasks">
+                        <Button 
+                          variant={isActive('/admin/tasks') ? 'default' : 'ghost'} 
+                          size="sm"
+                          className="px-3"
+                        >
+                          <FileText className="h-4 w-4 mr-1.5" />
+                          Tasks
+                        </Button>
+                      </Link>
                     </div>
-                    <Link href="/admin/dashboard">
-                      <Button variant={isActive('/admin/dashboard') ? 'default' : 'ghost'}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Dashboard
-                      </Button>
-                    </Link>
-                    <Link href="/admin/tasks">
-                      <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Tasks
-                      </Button>
-                    </Link>
-                    <Link href="/admin/tasks/create">
-                      <Button variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Task
-                      </Button>
-                    </Link>
-                    <Link href="/admin/export">
-                      <Button variant={isActive('/admin/export') ? 'default' : 'ghost'}>
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Export
-                      </Button>
-                    </Link>
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
 
@@ -190,8 +193,8 @@ export function Navigation() {
               <div className="hidden md:flex items-center space-x-3">
                 {/* User Avatar */}
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-700">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center shadow-sm">
+                    <span className="text-sm font-semibold text-blue-700">
                       {profile.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
@@ -205,7 +208,7 @@ export function Navigation() {
                   variant="ghost" 
                   size="sm" 
                   onClick={handleSignOut}
-                  className="px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 ease-in-out transform hover:scale-105"
+                  className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200"
                 >
                   Sign Out
                 </Button>
@@ -213,11 +216,16 @@ export function Navigation() {
             )}
 
             {/* Mobile Menu Button */}
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
+              className="md:hidden p-2"
+            >
               {mobileMenuOpen ? (
-                <X className="h-5 w-5 transition-transform duration-300 ease-in-out" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-5 w-5 transition-transform duration-300 ease-in-out" />
+                <Menu className="h-5 w-5" />
               )}
             </Button>
           </div>
@@ -225,8 +233,8 @@ export function Navigation() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/50 py-4 animate-in slide-in-from-top-2 duration-300 ease-out">
-            <div className="space-y-2 px-4">
+          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/50 py-4 shadow-lg">
+            <div className="space-y-1 px-4">
               {!user ? (
                 // Not authenticated - show login/signup
                 <>
@@ -257,13 +265,13 @@ export function Navigation() {
                 // Authenticated with profile - show appropriate navigation
                 <>
                   <Link href="/apply">
-                    <Button variant={isActive('/apply') ? 'default' : 'ghost'} className="w-full justify-start">
+                    <Button variant={isActive('/apply') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                       <Briefcase className="h-4 w-4 mr-2" />
                       Browse Tasks
                     </Button>
                   </Link>
                   <Link href="/dashboard">
-                    <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} className="w-full justify-start">
+                    <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                       <UserCheck className="h-4 w-4 mr-2" />
                       My Submissions
                     </Button>
@@ -274,27 +282,15 @@ export function Navigation() {
                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</span>
                       </div>
                       <Link href="/admin/dashboard">
-                        <Button variant={isActive('/admin/dashboard') ? 'default' : 'ghost'} className="w-full justify-start">
+                        <Button variant={isActive('/admin/dashboard') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Dashboard
                         </Button>
                       </Link>
                       <Link href="/admin/tasks">
-                        <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'} className="w-full justify-start">
+                        <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                           <FileText className="h-4 w-4 mr-2" />
                           Tasks
-                        </Button>
-                      </Link>
-                      <Link href="/admin/tasks/create">
-                        <Button variant={isActive('/admin/tasks/create') ? 'default' : 'ghost'} className="w-full justify-start">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Task
-                        </Button>
-                      </Link>
-                      <Link href="/admin/export">
-                        <Button variant={isActive('/admin/export') ? 'default' : 'ghost'} className="w-full justify-start">
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          Export
                         </Button>
                       </Link>
                     </>

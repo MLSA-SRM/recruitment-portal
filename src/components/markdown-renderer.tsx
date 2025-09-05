@@ -11,6 +11,12 @@ interface MarkdownRendererProps {
 }
 
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
+  // Normalize line endings and clean up content
+  const normalizedContent = content
+    .replace(/\r\n/g, '\n')  // Convert Windows line endings to Unix
+    .replace(/\r/g, '\n')    // Convert Mac line endings to Unix
+    .trim()
+
   return (
     <div className={`prose prose-sm max-w-none ${className}`}>
       <ReactMarkdown
@@ -22,10 +28,22 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           h2: ({ children }) => <h2 className="text-lg font-semibold text-gray-800 mb-2">{children}</h2>,
           h3: ({ children }) => <h3 className="text-base font-medium text-gray-700 mb-2">{children}</h3>,
           
-          // Customize list styles
-          ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3">{children}</ol>,
-          li: ({ children }) => <li className="text-gray-700">{children}</li>,
+          // Customize list styles with more robust CSS
+          ul: ({ children }) => (
+            <ul className="list-disc list-outside space-y-1 mb-3 pl-6" style={{ listStylePosition: 'outside' }}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="list-decimal list-outside space-y-1 mb-3 pl-6" style={{ listStylePosition: 'outside' }}>
+              {children}
+            </ol>
+          ),
+          li: ({ children }) => (
+            <li className="text-gray-700 leading-relaxed" style={{ display: 'list-item', listStylePosition: 'outside' }}>
+              {children}
+            </li>
+          ),
           
           // Customize paragraph styles
           p: ({ children }) => <p className="text-gray-700 mb-3 leading-relaxed">{children}</p>,
@@ -73,7 +91,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
           td: ({ children }) => <td className="px-4 py-2 text-sm text-gray-700">{children}</td>,
         }}
       >
-        {content}
+        {normalizedContent}
       </ReactMarkdown>
     </div>
   )

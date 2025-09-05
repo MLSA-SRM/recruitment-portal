@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { AdminLayout } from '@/components/admin-layout'
+import MarkdownRenderer from '@/components/markdown-renderer'
 import { 
   Plus, 
   Edit, 
@@ -364,13 +365,17 @@ export default function TasksPage() {
                         {task.requirements && (
                           <div className="text-sm">
                             <strong className="text-gray-700">Requirements:</strong>
-                            <p className="text-gray-600 mt-1 line-clamp-2">{task.requirements}</p>
+                            <div className="text-gray-600 mt-1 line-clamp-2">
+                              <MarkdownRenderer content={task.requirements} />
+                            </div>
                           </div>
                         )}
                         {task.deliverables && (
                           <div className="text-sm">
                             <strong className="text-gray-700">Deliverables:</strong>
-                            <p className="text-gray-600 mt-1 line-clamp-2">{task.deliverables}</p>
+                            <div className="text-gray-600 mt-1 line-clamp-2">
+                              <MarkdownRenderer content={task.deliverables} />
+                            </div>
                           </div>
                         )}
                       </div>

@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
+import MarkdownRenderer from '@/components/markdown-renderer'
 
 interface Task {
   id: number
@@ -22,6 +23,8 @@ interface Task {
   target_year: number
   deadline: string
   image_url?: string
+  requirements?: string
+  deliverables?: string
 }
 
 interface SubmissionField {
@@ -186,6 +189,33 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
         </div>
       </div>
 
+      {/* Requirements & Deliverables */}
+      {(task.requirements || task.deliverables) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Task Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {task.requirements && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements & Prerequisites</h3>
+                <MarkdownRenderer content={task.requirements} />
+              </div>
+            )}
+            
+            {task.deliverables && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Expected Deliverables</h3>
+                <MarkdownRenderer content={task.deliverables} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Submission Status Messages */}
       {submissionStatus && (
         <div className="space-y-3">
@@ -339,7 +369,7 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
                             <label key={key} className="flex items-center space-x-2">
                               <input 
                                 type="checkbox"
-                                name={`field_${field.field_name}_${key}`}
+                                name={`field_${field.field_name}[]`}
                                 value={key}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />

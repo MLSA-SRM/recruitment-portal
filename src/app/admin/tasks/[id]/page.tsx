@@ -18,6 +18,7 @@ import {
 import Link from 'next/link'
 import { notFound, useRouter } from 'next/navigation'
 import ImageLightbox from '@/components/image-lightbox'
+import MarkdownRenderer from '@/components/markdown-renderer'
 import { useEffect, useState, use } from 'react'
 
 export default function TaskViewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -196,7 +197,11 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
           <CardContent className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-              <p className="text-gray-600">{task.description || 'No description provided'}</p>
+              {task.description ? (
+                <MarkdownRenderer content={task.description} />
+              ) : (
+                <p className="text-gray-600">No description provided</p>
+              )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -277,14 +282,14 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
               {task.requirements && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements & Prerequisites</h3>
-                  <p className="text-gray-600">{task.requirements}</p>
+                  <MarkdownRenderer content={task.requirements} />
                 </div>
               )}
               
               {task.deliverables && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Expected Deliverables</h3>
-                  <p className="text-gray-600">{task.deliverables}</p>
+                  <MarkdownRenderer content={task.deliverables} />
                 </div>
               )}
             </CardContent>

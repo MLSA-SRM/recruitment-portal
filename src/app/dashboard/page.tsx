@@ -200,10 +200,10 @@ export default async function DashboardPage() {
           <div className="text-gray-400 text-6xl mb-4">📝</div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
           <p className="text-gray-600 mb-4">
-            You haven&apos;t submitted any applications yet. Browse available positions and submit your first application.
+            You haven&apos;t submitted any tasks yet. Browse available tasks and submit your first task.
           </p>
           <Link href="/apply">
-            <Button>Browse Positions</Button>
+            <Button>Browse Tasks</Button>
           </Link>
         </div>
       )}

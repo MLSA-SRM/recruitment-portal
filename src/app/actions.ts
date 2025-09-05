@@ -314,6 +314,9 @@ export async function handleSubmission(formData: FormData) {
   const taskId = parsed.data.taskId
   console.log('Processing submission for task ID:', taskId)
   
+  // Debug: Log all form data keys
+  console.log('Form data keys:', Array.from(formData.keys()))
+  
   // Check if this task has custom submission fields
   const { data: submissionFields } = await supabase
     .from('submission_fields')
@@ -330,7 +333,7 @@ export async function handleSubmission(formData: FormData) {
     // Process all custom submission fields
     submissionFields.forEach(field => {
       const fieldName = `field_${field.field_name}`
-      console.log('Processing field:', field.field_name, 'type:', field.field_type)
+      console.log('Processing field:', field.field_name, 'type:', field.field_type, 'fieldName:', fieldName)
       
       let fieldValue: unknown = null
       
@@ -353,6 +356,7 @@ export async function handleSubmission(formData: FormData) {
         case 'checkbox':
           // Handle multiple checkbox values
           const checkboxValues = formData.getAll(`${fieldName}[]`)
+          console.log('Checkbox field processing:', fieldName, 'values:', checkboxValues)
           fieldValue = checkboxValues.length > 0 ? checkboxValues : formData.get(fieldName)
           break
           

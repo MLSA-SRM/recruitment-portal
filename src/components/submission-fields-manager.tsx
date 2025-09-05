@@ -230,7 +230,17 @@ export default function SubmissionFieldsManager({
                 <Label htmlFor="field_type">Field Type *</Label>
                 <Select
                   value={editingField?.field_type || 'text'}
-                  onValueChange={(value) => editingField && updateField(editingField.id, { field_type: value as SubmissionField['field_type'] })}
+                  onValueChange={(value) => {
+                    if (editingField) {
+                      const updatedField = { ...editingField, field_type: value as SubmissionField['field_type'] }
+                      setEditingField(updatedField)
+                      // Also update the fields array immediately for this field
+                      const updatedFields = fields.map(f =>
+                        f.id === editingField.id ? updatedField : f
+                      )
+                      setFields(updatedFields)
+                    }
+                  }}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />

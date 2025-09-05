@@ -114,7 +114,7 @@ export default function ProfileSetupPage() {
             Complete Your Profile
           </h1>
           <p className="text-xl text-gray-600 font-light leading-relaxed max-w-2xl mx-auto">
-            Please provide your details to complete your profile setup and start applying for positions.
+            Please provide your details to complete your profile setup and start submitting tasks.
           </p>
         </div>
 

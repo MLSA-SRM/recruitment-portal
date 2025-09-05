@@ -61,7 +61,7 @@ export default async function ApplyPage() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-black tracking-tight text-gray-900 mb-6">
-            Available Positions for Your Domains
+            Available Tasks for Your Domains
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
             Showing tasks matching your domains ({userDomains.join(', ')}), subdomains ({userSubdomains.join(', ')}), and {profile.year === 1 ? '1st' : '2nd'} year level.

@@ -189,98 +189,40 @@ export default function EditTaskPage() {
     setIsSubmitting(true)
     
     try {
-      const supabase = createSupabaseClient()
-      
-      // Check if user is authenticated
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) {
-        console.error('Authentication error:', authError)
-        throw new Error('User not authenticated')
-      }
-      
-      console.log('User authenticated:', user.id)
-      
-      // Check if user is admin
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single()
-      
-      if (profileError) {
-        console.error('Profile fetch error:', profileError)
-        throw new Error('Failed to fetch user profile')
-      }
-      
-      console.log('User profile:', profile)
-      
-      if (!profile?.is_admin) {
-        throw new Error('Unauthorized: Admin access required')
-      }
-      
-      // Update the task
-      console.log('Updating task in database...')
-      const { error } = await supabase
-        .from('tasks')
-        .update({
-          title: formData.title,
-          description: formData.description,
-          domain: formData.domain,
-          subdomain: formData.subdomain,
-          target_year: parseInt(formData.target_year),
-          deadline: formData.deadline,
-          estimated_duration: formData.estimated_duration,
-          requirements: formData.requirements,
-          deliverables: formData.deliverables,
-          image_url: formData.image_url || null
-        })
-        .eq('id', taskId)
-
-      if (error) {
-        console.error('Supabase update error:', error)
-        throw error
+      // Prepare the data for the API
+      const updateData = {
+        title: formData.title,
+        description: formData.description,
+        domain: formData.domain,
+        subdomain: formData.subdomain,
+        target_year: parseInt(formData.target_year),
+        deadline: formData.deadline,
+        estimated_duration: formData.estimated_duration,
+        requirements: formData.requirements,
+        deliverables: formData.deliverables,
+        image_url: formData.image_url || null,
+        submissionFields: submissionFields
       }
 
-      // Update submission fields
-      if (submissionFields.length > 0) {
-        console.log('Updating submission fields...')
-        
-        // First, delete existing submission fields
-        const { error: deleteError } = await supabase
-          .from('submission_fields')
-          .delete()
-          .eq('task_id', taskId)
+      console.log('Sending update request to API...')
+      
+      // Call the API route
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      })
 
-        if (deleteError) {
-          console.error('Error deleting existing submission fields:', deleteError)
-        }
-
-        // Then insert the new submission fields
-        const fieldsToInsert = submissionFields.map(field => ({
-          task_id: Number(taskId),
-          field_name: field.field_name,
-          field_type: field.field_type,
-          field_label: field.field_label,
-          field_description: field.field_description,
-          is_required: field.is_required,
-          field_options: field.field_options,
-          validation_rules: field.validation_rules,
-          display_order: field.display_order
-        }))
-
-        const { error: fieldsError } = await supabase
-          .from('submission_fields')
-          .insert(fieldsToInsert)
-
-        if (fieldsError) {
-          console.error('Error updating submission fields:', fieldsError)
-          // Don't fail the entire operation if fields fail
-        } else {
-          console.log('Submission fields updated successfully')
-        }
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
 
-      console.log('Task updated successfully')
+      const updatedTask = await response.json()
+      console.log('Task updated successfully:', updatedTask)
+      
       router.push('/admin/tasks')
     } catch (error) {
       console.error('Error updating task:', error)
