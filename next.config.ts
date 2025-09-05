@@ -49,6 +49,12 @@ const nextConfig: NextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
           },
+          // Override any upstream Permissions-Policy that may include unsupported directives like 'browsing-topics'
+          // Include a conservative, recognized policy only
+          {
+            key: 'Permissions-Policy',
+            value: 'geolocation=(), microphone=(), camera=(), interest-cohort=()'
+          },
         ],
       },
       {

@@ -101,7 +101,7 @@ export function Navigation() {
           </div>
           
           {/* Navigation Links (center) */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden md:flex flex-1 items-center justify-center space-x-1">
             {!user || !profile ? (
               // For unauthenticated or incomplete profile, keep center empty to avoid layout shifts
               <></>
@@ -165,7 +165,7 @@ export function Navigation() {
           </div>
 
           {/* User Menu / Mobile Menu (right) */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 ml-auto">
             {!user && (
               <div className="hidden md:flex items-center space-x-2">
                 <Link href="/auth/signin">

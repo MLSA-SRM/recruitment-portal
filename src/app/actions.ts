@@ -879,17 +879,33 @@ export async function updateSubmission(formData: FormData) {
 export async function canSubmitToTask(taskId: number) {
   const supabase = await createSupabaseServer()
   const userId = await getCurrentUserId()
-  if (!userId) throw new Error('Not authenticated')
+  if (!userId) {
+    return {
+      canSubmit: false,
+      canEdit: false,
+      deadlinePassed: false,
+      hasSubmitted: false,
+      existingSubmissionId: undefined,
+      deadline: undefined,
+    }
+  }
 
   // Get user profile to check if they can access this task
   const { data: profile } = await supabase
     .from('profiles')
-    .select('domain, subdomain, year, is_admin')
+    .select('domain, subdomain, year, is_admin, domains, subdomains')
     .eq('id', userId)
     .single()
 
   if (!profile) {
-    throw new Error('Profile not found')
+    return {
+      canSubmit: false,
+      canEdit: false,
+      deadlinePassed: false,
+      hasSubmitted: false,
+      existingSubmissionId: undefined,
+      deadline: undefined,
+    }
   }
 
   // Get task details
@@ -900,17 +916,38 @@ export async function canSubmitToTask(taskId: number) {
     .single()
 
   if (!task) {
-    throw new Error('Task not found')
+    return {
+      canSubmit: false,
+      canEdit: false,
+      deadlinePassed: false,
+      hasSubmitted: false,
+      existingSubmissionId: undefined,
+      deadline: undefined,
+    }
   }
 
   // Check if user can access this task (admin can see all, others only see matching tasks)
   if (!profile.is_admin) {
-    const canAccess = task.domain === profile.domain && 
-                     task.subdomain === profile.subdomain && 
+    const domainsArray: string[] = Array.isArray((profile as unknown as { domains?: string[] }).domains) && (profile as unknown as { domains?: string[] }).domains!.length > 0
+      ? (profile as unknown as { domains: string[] }).domains
+      : [profile.domain].filter(Boolean) as string[]
+    const subdomainsArray: string[] = Array.isArray((profile as unknown as { subdomains?: string[] }).subdomains) && (profile as unknown as { subdomains?: string[] }).subdomains!.length > 0
+      ? (profile as unknown as { subdomains: string[] }).subdomains
+      : [profile.subdomain].filter(Boolean) as string[]
+
+    const canAccess = domainsArray.includes(task.domain) &&
+                     subdomainsArray.includes(task.subdomain) &&
                      task.target_year === profile.year
-    
+
     if (!canAccess) {
-      throw new Error('Access denied - task does not match your profile')
+      return {
+        canSubmit: false,
+        canEdit: false,
+        deadlinePassed: false,
+        hasSubmitted: false,
+        existingSubmissionId: undefined,
+        deadline: task.deadline
+      }
     }
   }
 
