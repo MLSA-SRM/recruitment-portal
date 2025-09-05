@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Microsoft Student Ambassadors SRM',
   description: 'Microsoft Student Ambassadors SRM University - Join our elite team of tech enthusiasts and innovators.',
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
 }
 
 export default function RootLayout({

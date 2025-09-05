@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 import { env } from '@/env'
 
 // Cache for user sessions to reduce database calls
-const sessionCache = new Map<string, { user: any; profile: any; timestamp: number }>()
+const sessionCache = new Map<string, { user: unknown; profile: unknown; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 export async function middleware(req: NextRequest) {
@@ -19,8 +19,7 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: { [key: string]: unknown }) {
           req.cookies.set({
             name,
             value,
@@ -32,8 +31,7 @@ export async function middleware(req: NextRequest) {
             ...options,
           })
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        remove(name: string, options: any) {
+        remove(name: string, options: { [key: string]: unknown }) {
           req.cookies.set({
             name,
             value: '',

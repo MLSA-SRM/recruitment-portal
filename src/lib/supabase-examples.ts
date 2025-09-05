@@ -6,8 +6,7 @@ import {
   getCachedProfile, 
   getCachedTasks, 
   getCachedSubmissions,
-  createSubmissionWithCache,
-  updateSubmissionWithCache
+  createSubmissionWithCache
 } from './supabase-cache'
 import { realtimeManager, realtimeUtils } from './realtime-optimized'
 import { withRetry, withTimeout, handleSupabaseError } from './supabase-optimized'
@@ -17,15 +16,13 @@ import type { Database } from './database.types'
 export async function getTasksForUser(userId: string) {
   try {
     // Get user profile first (cached)
-    const { data: profile, error: profileError } = await getCachedProfile(userId)
-    if (profileError) throw profileError
+    const profile = await getCachedProfile(userId)
 
     // Get tasks filtered by user's year (cached)
-    const { data: tasks, error: tasksError } = await getCachedTasks({
+    const tasks = await getCachedTasks({
       targetYear: profile?.year,
       limit: 20
     })
-    if (tasksError) throw tasksError
 
     return { tasks, profile }
   } catch (error) {
@@ -44,8 +41,7 @@ export async function createSubmissionOptimized(
     }
 
     // Create submission with cache invalidation
-    const { data, error } = await createSubmissionWithCache(submissionData)
-    if (error) throw error
+    const data = await createSubmissionWithCache(submissionData)
 
     return { success: true, data }
   } catch (error) {
@@ -69,7 +65,7 @@ export async function updateMultipleSubmissions(
 }
 
 // Example 4: Real-time subscriptions with proper cleanup
-export function useSubmissionUpdates(taskId: number, callback: (payload: any) => void) {
+export function useSubmissionUpdates(taskId: number, callback: (payload: unknown) => void) {
   // Subscribe to task-specific submission changes
   const unsubscribe = realtimeManager.subscribeToTaskChanges(taskId, callback)
   
@@ -78,7 +74,7 @@ export function useSubmissionUpdates(taskId: number, callback: (payload: any) =>
 }
 
 // Example 5: Admin dashboard with real-time updates
-export function useAdminDashboard(callback: (payload: any) => void) {
+export function useAdminDashboard(callback: (payload: unknown) => void) {
   // Subscribe to all relevant changes for admin dashboard
   const unsubscribe = realtimeManager.subscribeToAdminDashboard(callback)
   
@@ -86,7 +82,7 @@ export function useAdminDashboard(callback: (payload: any) => void) {
 }
 
 // Example 6: User-specific real-time updates
-export function useUserUpdates(userId: string, callback: (payload: any) => void) {
+export function useUserUpdates(userId: string, callback: (payload: unknown) => void) {
   // Subscribe to user-specific changes
   const unsubscribe = realtimeManager.subscribeToUserChanges(userId, callback)
   
@@ -189,7 +185,12 @@ export async function robustDatabaseOperation<T>(
 }
 
 // Example 10: Timeout protection for long-running operations
-export async function getTasksWithTimeout(filters?: any) {
+export async function getTasksWithTimeout(filters?: {
+  domain?: string
+  subdomain?: string
+  targetYear?: number
+  limit?: number
+}) {
   try {
     const operation = () => getCachedTasks(filters)
     const data = await withTimeout(operation(), 10000) // 10 second timeout
@@ -200,7 +201,7 @@ export async function getTasksWithTimeout(filters?: any) {
 }
 
 // Example 11: Real-time notifications for new submissions
-export function setupSubmissionNotifications(callback: (submission: any) => void) {
+export function setupSubmissionNotifications(callback: (submission: unknown) => void) {
   // Subscribe to new pending submissions
   const unsubscribe = realtimeUtils.subscribeToNewSubmissions(0, (payload) => {
     if (payload.eventType === 'INSERT') {
@@ -212,7 +213,7 @@ export function setupSubmissionNotifications(callback: (submission: any) => void
 }
 
 // Example 12: AI review completion notifications
-export function setupAIReviewNotifications(callback: (submission: any) => void) {
+export function setupAIReviewNotifications(callback: (submission: unknown) => void) {
   // Subscribe to AI review completions
   const unsubscribe = realtimeUtils.subscribeToAIReviews((payload) => {
     if (payload.eventType === 'UPDATE' && payload.new.ai_review) {
@@ -224,7 +225,7 @@ export function setupAIReviewNotifications(callback: (submission: any) => void) 
 }
 
 // Example 13: Admin action notifications
-export function setupAdminActionNotifications(callback: (submission: any) => void) {
+export function setupAdminActionNotifications(callback: (submission: unknown) => void) {
   // Subscribe to admin review actions
   const unsubscribe = realtimeUtils.subscribeToAdminActions((payload) => {
     if (payload.eventType === 'UPDATE' && payload.new.admin_review) {
@@ -236,11 +237,11 @@ export function setupAdminActionNotifications(callback: (submission: any) => voi
 }
 
 // Example 14: Performance monitoring wrapper
-export function withPerformanceMonitoring<T extends (...args: any[]) => Promise<any>>(
+export function withPerformanceMonitoring<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   name: string
 ): T {
-  return (async (...args: any[]) => {
+  return (async (...args: unknown[]) => {
     const start = performance.now()
     try {
       const result = await fn(...args)
@@ -258,20 +259,21 @@ export function withPerformanceMonitoring<T extends (...args: any[]) => Promise<
 // Example 15: Complete dashboard data fetching
 export async function getDashboardData(userId: string, isAdmin: boolean = false) {
   try {
-    const [profileResult, tasksResult, submissionsResult] = await Promise.all([
+    const [profile, recentTasks, userSubmissions] = await Promise.all([
       getCachedProfile(userId),
       getCachedTasks({ limit: 10 }),
       getCachedSubmissions({ applicantId: userId, limit: 10 })
     ])
 
-    if (profileResult.error) throw profileResult.error
-    if (tasksResult.error) throw tasksResult.error
-    if (submissionsResult.error) throw submissionsResult.error
-
-    const dashboardData = {
-      profile: profileResult.data,
-      recentTasks: tasksResult.data,
-      userSubmissions: submissionsResult.data
+    const dashboardData: {
+      profile: unknown
+      recentTasks: unknown[]
+      userSubmissions: unknown[]
+      adminPendingSubmissions?: unknown
+    } = {
+      profile,
+      recentTasks,
+      userSubmissions
     }
 
     // Add admin-specific data if user is admin
@@ -281,7 +283,7 @@ export async function getDashboardData(userId: string, isAdmin: boolean = false)
         limit: 20
       })
       
-      if (adminData.success) {
+      if (adminData.success && 'data' in adminData) {
         dashboardData.adminPendingSubmissions = adminData.data
       }
     }

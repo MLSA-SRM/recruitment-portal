@@ -1,5 +1,4 @@
 import { createSupabaseClient } from './supabase-client'
-import { supabaseOptimized } from './supabase-optimized'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
@@ -26,9 +25,9 @@ export class RealtimeManager {
   }
 
   // Subscribe to table changes with optimized filtering
-  subscribeToTable<T = any>(
+  subscribeToTable(
     table: keyof Database['public']['Tables'],
-    callback: (payload: RealtimePostgresChangesPayload<T>) => void,
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
     options: {
       event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'
       filter?: string
@@ -41,7 +40,8 @@ export class RealtimeManager {
     // Check if channel already exists
     if (this.channels.has(channelName)) {
       const existingChannel = this.channels.get(channelName)!
-      existingChannel.on('postgres_changes', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(existingChannel as any).on('postgres_changes', {
         event,
         schema: 'public',
         table: table as string,
@@ -49,22 +49,23 @@ export class RealtimeManager {
       }, callback)
       
       return () => {
-        existingChannel.off('postgres_changes', callback)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(existingChannel as any).off('postgres_changes', callback)
         this.cleanupChannel(channelName)
       }
     }
 
     // Create new channel
     const client = createSupabaseClient()
-    const channel = client
-      .channel(channelName)
-      .on('postgres_changes', {
+    const channel = client.channel(channelName)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(channel as any).on('postgres_changes', {
         event,
         schema: 'public',
         table: table as string,
         filter
       }, callback)
-      .subscribe((status) => {
+    channel.subscribe((status) => {
         this.handleChannelStatus(channelName, status)
       })
 
@@ -79,7 +80,7 @@ export class RealtimeManager {
   // Subscribe to user-specific changes
   subscribeToUserChanges(
     userId: string,
-    callback: (payload: any) => void
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
   ): () => void {
     const unsubscribers: (() => void)[] = []
 
@@ -106,7 +107,7 @@ export class RealtimeManager {
 
   // Subscribe to admin dashboard changes
   subscribeToAdminDashboard(
-    callback: (payload: any) => void
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
   ): () => void {
     const unsubscribers: (() => void)[] = []
 
@@ -139,7 +140,7 @@ export class RealtimeManager {
   // Subscribe to task-specific changes
   subscribeToTaskChanges(
     taskId: number,
-    callback: (payload: any) => void
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
   ): () => void {
     return this.subscribeToTable('submissions', callback, {
       filter: `task_id=eq.${taskId}`
@@ -148,7 +149,7 @@ export class RealtimeManager {
 
   // Subscribe to pending submissions (for real-time notifications)
   subscribeToPendingSubmissions(
-    callback: (payload: any) => void
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void
   ): () => void {
     return this.subscribeToTable('submissions', callback, {
       filter: 'status=eq.pending'
@@ -158,15 +159,16 @@ export class RealtimeManager {
   // Unsubscribe from specific table
   private unsubscribeFromTable(
     table: keyof Database['public']['Tables'],
-    callback: (payload: any) => void,
+    callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
     options: { event?: string; filter?: string; userId?: string } = {}
   ): void {
-    const { event = '*', filter, userId } = options
+    const { event = '*', filter } = options
     const channelName = `${table}_${event}_${filter || 'all'}`
     
     const channel = this.channels.get(channelName)
     if (channel) {
-      channel.off('postgres_changes', callback)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(channel as any).off('postgres_changes', callback)
       this.cleanupChannel(channelName)
     }
   }
@@ -176,7 +178,8 @@ export class RealtimeManager {
     const channel = this.channels.get(channelName)
     if (channel) {
       // Check if channel has any active subscriptions
-      const hasActiveSubscriptions = this.subscriptions.get(channelName)?.size > 0
+      const subscriptionSet = this.subscriptions.get(channelName)
+      const hasActiveSubscriptions = subscriptionSet ? subscriptionSet.size > 0 : false
       
       if (!hasActiveSubscriptions) {
         channel.unsubscribe()
@@ -229,7 +232,7 @@ export class RealtimeManager {
 
   // Reconnect all active channels
   private reconnectAllChannels(): void {
-    this.channels.forEach((channel, channelName) => {
+    this.channels.forEach((channel) => {
       channel.unsubscribe()
       // Channel will be recreated on next subscription
     })
@@ -282,15 +285,16 @@ export class RealtimeManager {
 export const realtimeManager = RealtimeManager.getInstance()
 
 // React hooks for real-time subscriptions
-export function useRealtimeSubscription<T = any>(
+export function useRealtimeSubscription(
   table: keyof Database['public']['Tables'],
-  callback: (payload: RealtimePostgresChangesPayload<T>) => void,
+  callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
   options: {
     event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'
     filter?: string
     userId?: string
   } = {}
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useEffect, useRef } = require('react')
   
   const callbackRef = useRef(callback)
@@ -304,13 +308,13 @@ export function useRealtimeSubscription<T = any>(
     )
 
     return unsubscribe
-  }, [table, options.event, options.filter, options.userId])
+  }, [table, options])
 }
 
 // Utility functions for common real-time patterns
 export const realtimeUtils = {
   // Subscribe to new submissions for a specific task
-  subscribeToNewSubmissions: (taskId: number, callback: (payload: any) => void) => {
+  subscribeToNewSubmissions: (taskId: number, callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void) => {
     return realtimeManager.subscribeToTable('submissions', callback, {
       event: 'INSERT',
       filter: `task_id=eq.${taskId}`
@@ -318,7 +322,7 @@ export const realtimeUtils = {
   },
 
   // Subscribe to submission status changes
-  subscribeToSubmissionStatusChanges: (callback: (payload: any) => void) => {
+  subscribeToSubmissionStatusChanges: (callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void) => {
     return realtimeManager.subscribeToTable('submissions', callback, {
       event: 'UPDATE',
       filter: 'status=neq.pending'
@@ -326,7 +330,7 @@ export const realtimeUtils = {
   },
 
   // Subscribe to AI review completions
-  subscribeToAIReviews: (callback: (payload: any) => void) => {
+  subscribeToAIReviews: (callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void) => {
     return realtimeManager.subscribeToTable('submissions', callback, {
       event: 'UPDATE',
       filter: 'ai_review=not.is.null'
@@ -334,7 +338,7 @@ export const realtimeUtils = {
   },
 
   // Subscribe to admin actions
-  subscribeToAdminActions: (callback: (payload: any) => void) => {
+  subscribeToAdminActions: (callback: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void) => {
     return realtimeManager.subscribeToTable('submissions', callback, {
       event: 'UPDATE',
       filter: 'admin_review=not.is.null'
@@ -343,11 +347,11 @@ export const realtimeUtils = {
 }
 
 // Performance monitoring for real-time connections
-export function withRealtimeMetrics<T extends (...args: any[]) => any>(
+export function withRealtimeMetrics<T extends (...args: unknown[]) => unknown>(
   fn: T,
   name: string
 ): T {
-  return ((...args: any[]) => {
+  return ((...args: unknown[]) => {
     const start = performance.now()
     const result = fn(...args)
     const duration = performance.now() - start

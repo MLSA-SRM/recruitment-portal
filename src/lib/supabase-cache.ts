@@ -86,7 +86,7 @@ export const getCachedTasksWithFields = unstable_cache(
     // Fetch submission fields for each task
     const tasksWithFields = await Promise.all(
       (tasks || []).map(async (task) => {
-        const { data: fields, error: fieldsError } = await supabaseOptimized.executeQuery(
+        const { data: fields } = await supabaseOptimized.executeQuery(
           (client) => client
             .from('submission_fields')
             .select('*')
@@ -245,11 +245,11 @@ export async function updateSubmissionWithCache(
 }
 
 // Performance monitoring
-export function withCacheMetrics<T extends (...args: any[]) => Promise<any>>(
+export function withCacheMetrics<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   name: string
 ): T {
-  return (async (...args: any[]) => {
+  return (async (...args: unknown[]) => {
     const start = performance.now()
     try {
       const result = await fn(...args)

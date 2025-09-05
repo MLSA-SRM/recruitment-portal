@@ -37,13 +37,13 @@ export class OptimizedSupabaseClient {
 
   // Execute query with retry logic and error handling
   async executeQuery<T>(
-    queryFn: (client: any) => Promise<T>,
+    queryFn: (client: Awaited<ReturnType<typeof createSupabaseServer>>) => T,
     context: string = 'database query'
   ): Promise<T> {
     const client = await this.getServerClient()
     
     return executeWithRetry(
-      () => queryFn(client),
+      async () => await queryFn(client),
       context
     )
   }
@@ -175,13 +175,13 @@ export class OptimizedSupabaseClient {
   }
 
   // Real-time subscription helper
-  subscribeToTable<T>(
+  subscribeToTable(
     table: string,
-    callback: (payload: any) => void,
+    callback: (payload: unknown) => void,
     filter?: string
   ) {
     const client = this.getClient()
-    let subscription = client
+    const subscription = client
       .channel(`${table}_changes`)
       .on('postgres_changes', 
         { 
@@ -203,7 +203,7 @@ export class OptimizedSupabaseClient {
   async healthCheck() {
     try {
       const client = await this.getServerClient()
-      const { data, error } = await client
+      const { error } = await client
         .from('profiles')
         .select('count')
         .limit(1)
@@ -261,11 +261,11 @@ export async function withTimeout<T>(
 }
 
 // Error handling utilities
-export function isSupabaseError(error: any): error is { message: string; code?: string } {
-  return error && typeof error.message === 'string'
+export function isSupabaseError(error: unknown): error is { message: string; code?: string } {
+  return !!(error && typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message: unknown }).message === 'string')
 }
 
-export function handleSupabaseError(error: any, context: string = 'operation') {
+export function handleSupabaseError(error: unknown, context: string = 'operation') {
   if (isSupabaseError(error)) {
     console.error(`[${context}] Supabase error:`, error.message, error.code)
     return {

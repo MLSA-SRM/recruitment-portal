@@ -76,14 +76,6 @@ export default function SubmissionFieldsManager({
     setShowAddForm(true)
   }
 
-  const updateField = (fieldId: number, updates: Partial<SubmissionField>) => {
-    const updatedFields = fields.map(field => 
-      field.id === fieldId ? { ...field, ...updates } : field
-    )
-    setFields(updatedFields)
-    onFieldsChange(updatedFields)
-  }
-
   const deleteField = (fieldId: number) => {
     const updatedFields = fields.filter(field => field.id !== fieldId)
     setFields(updatedFields)

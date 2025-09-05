@@ -1,7 +1,7 @@
 'use server'
 
 import { createSupabaseServer } from '@/lib/supabase'
-import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS, validateSubmissionUrls, analyzeContentForFakeSubmission, detectFakeSubmission } from '@/lib/ai'
+import { getGeminiModel, parseGeminiJsonResponse, generateStructuredReview, PROMPTS, validateSubmissionUrls, detectFakeSubmission } from '@/lib/ai'
 import { Octokit } from 'octokit'
 import * as cheerio from 'cheerio'
 import { z } from 'zod'
@@ -127,7 +127,7 @@ async function performAIReview(opts: {
   if (submissionUrl) urlsToValidate.push(submissionUrl)
   
   if (submissionData) {
-    Object.entries(submissionData).forEach(([fieldName, fieldInfo]) => {
+    Object.entries(submissionData).forEach(([, fieldInfo]) => {
       if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
         const { value, type } = fieldInfo as { value: unknown; type: string }
         if (type === 'url' && typeof value === 'string' && value.trim()) {

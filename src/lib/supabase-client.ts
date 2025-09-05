@@ -11,15 +11,6 @@ export function createSupabaseClient() {
       persistSession: true,
       // Detect session from URL (for OAuth callbacks)
       detectSessionInUrl: true,
-      // Enable multi-tab synchronization
-      multiTab: true,
-    },
-    // Enable real-time features
-    realtime: {
-      // Enable real-time subscriptions
-      enabled: true,
-      // Configure heartbeat interval
-      heartbeatIntervalMs: 30000,
     },
     // Global configuration
     global: {
