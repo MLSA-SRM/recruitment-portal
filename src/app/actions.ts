@@ -138,15 +138,17 @@ async function performAIReview(opts: {
   }
 
   const urlValidation = validateSubmissionUrls(urlsToValidate)
+  
+  // Only reject if ALL URLs are invalid
   if (!urlValidation.isValid && urlValidation.isPlaceholder) {
-    console.log(`[AI][${context}] Invalid URLs detected:`, urlValidation.reason)
+    console.log(`[AI][${context}] All URLs are invalid:`, urlValidation.reason)
     
     const { error: invalidUrlError } = await supabase.from('submissions').update({
       ai_score: 0, // Score 0 for completely invalid URLs
       ai_review: `**AI Review - Invalid Submission**
 
 ## Summary
-This submission contains invalid or malformed URLs (${urlValidation.reason}) and cannot be properly evaluated.
+This submission contains only invalid or malformed URLs (${urlValidation.reason}) and cannot be properly evaluated.
 
 ## Score Breakdown
 | Area | Points | Why points were deducted |
@@ -158,8 +160,8 @@ This submission contains invalid or malformed URLs (${urlValidation.reason}) and
 | Documentation & Deployment | 0/100 | No valid content to evaluate |
 
 ## Critical Issues
-- **Invalid URLs**: Submission contains malformed or empty URLs
-- **Cannot Evaluate**: Unable to access or analyze the submission content
+- **Invalid URLs**: All URLs are malformed or empty
+- **Cannot Evaluate**: Unable to access or analyze any submission content
 
 ## Recommendations
 - **Fix URL format**: Ensure all URLs are properly formatted and accessible
@@ -174,6 +176,15 @@ This submission contains invalid or malformed URLs (${urlValidation.reason}) and
       console.error(`[AI][${context}] Failed to update invalid URL rejection:`, invalidUrlError)
     }
     return
+  }
+
+  // Log URL validation results for debugging
+  if (urlValidation.invalidUrls.length > 0) {
+    console.log(`[AI][${context}] Mixed URL quality detected:`, {
+      legitimate: urlValidation.legitimateUrls.length,
+      invalid: urlValidation.invalidUrls.length,
+      invalidUrls: urlValidation.invalidUrls
+    })
   }
 
   const { data: task } = await supabase
@@ -394,9 +405,20 @@ This submission appears to be fake, placeholder, or contains no actual work. Ple
   try {
     console.log(`[AI][${context}] Calling model for submission ${submissionId}`)
     const model = getGeminiModel('gemini-2.0-flash')
+    
+    // Add enhanced URL analysis for mixed quality submissions
+    const { analyzeMixedUrlSubmission } = await import('@/lib/ai')
+    const mixedUrlAnalysis = analyzeMixedUrlSubmission(urlsToValidate, content)
+    
     // Encourage concise output and include task context
     const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Target Year: ${task?.target_year ?? ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}${task?.image_url ? `\n- Task Image URL: ${task.image_url}` : ''}`
-    const concisePrompt = `${taskContext}
+    
+    // Add URL analysis context to the prompt
+    const urlAnalysisContext = mixedUrlAnalysis.shouldEvaluate 
+      ? `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}`
+      : `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}`
+    
+    const concisePrompt = `${taskContext}${urlAnalysisContext}
 
 ${prompt}
 
@@ -951,13 +973,12 @@ export async function updateSubmission(formData: FormData) {
     }
   }
 
-  // Update the submission
+  // Update the submission (let database triggers handle updated_at automatically)
   const { error } = await supabase
     .from('submissions')
     .update({ 
       submission_url: submissionUrl,
-      submission_data: submissionData,
-      updated_at: new Date().toISOString()
+      submission_data: submissionData
     })
     .eq('id', submissionId)
 

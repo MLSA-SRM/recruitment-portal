@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
           .single()
         
         if (profile) {
-          // User has a profile, redirect to dashboard
-          return NextResponse.redirect(`${origin}/dashboard`)
+          // User has a profile, redirect to apply page
+          return NextResponse.redirect(`${origin}/apply`)
         }
       }
       

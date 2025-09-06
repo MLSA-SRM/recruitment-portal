@@ -100,13 +100,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { taskId } = parsed.data
     const { submissionFields, ...taskData } = validatedData.data
 
-    // Update the task
+    // Update the task (let database triggers handle updated_at automatically)
     const { data: updatedTask, error: updateError } = await supabase
       .from('tasks')
-      .update({
-        ...taskData,
-        updated_at: new Date().toISOString()
-      })
+      .update(taskData)
       .eq('id', taskId)
       .select()
       .single()

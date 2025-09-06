@@ -116,13 +116,20 @@ export default function EditTaskPage() {
       
       // Auto-calculate estimated duration when deadline changes
       if (field === 'deadline') {
-        // If it's a date-only input, set time to 23:59 (end of day)
-        if (value && !value.includes('T')) {
+        // Only modify deadline if user is actually changing it, not on form load
+        // Check if this is a meaningful change (not just a format conversion)
+        const currentDeadline = prev.deadline
+        const isActualChange = currentDeadline && 
+          new Date(currentDeadline).getTime() !== new Date(value).getTime()
+        
+        if (value && !value.includes('T') && isActualChange) {
+          // If it's a date-only input and an actual change, set time to 23:59 (end of day)
           const dateOnly = value
           const endOfDay = `${dateOnly}T23:59`
           newData.deadline = endOfDay
           newData.estimated_duration = calculateEstimatedDuration(endOfDay)
-        } else {
+        } else if (value) {
+          // For datetime inputs or when not changing, just update estimated duration
           newData.estimated_duration = calculateEstimatedDuration(value)
         }
       }

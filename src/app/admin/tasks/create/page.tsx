@@ -74,7 +74,8 @@ export default function CreateTaskPage() {
       
       // Auto-calculate estimated duration when deadline changes
       if (field === 'deadline') {
-        // If it's a date-only input, set time to 23:59 (end of day)
+        // For create form, we can safely convert date-only to end-of-day
+        // since this is a new task being created
         if (value && !value.includes('T')) {
           const dateOnly = value
           const endOfDay = `${dateOnly}T23:59`
