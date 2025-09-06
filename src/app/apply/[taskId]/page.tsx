@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
 import MarkdownRenderer from '@/components/markdown-renderer'
+import { redirectWithRefresh } from '@/lib/redirect-utils'
 
 interface Task {
   id: number
@@ -101,16 +102,15 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
     setIsSubmitting(true)
     try {
       await handleSubmission(formData)
-      toast.success('Application submitted successfully!')
-      // Refresh submission status
-      const statusResponse = await fetch(`/api/submission-status?taskId=${taskId}`)
-      if (statusResponse.ok) {
-        const status = await statusResponse.json()
-        setSubmissionStatus(status)
-      }
+      toast.success('Application submitted successfully!', {
+        description: 'Redirecting to dashboard...'
+      })
+      
+      // Redirect to dashboard after successful submission
+      redirectWithRefresh('/dashboard', 1500, 'Application submitted successfully!')
+      
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit application')
-    } finally {
       setIsSubmitting(false)
     }
   }

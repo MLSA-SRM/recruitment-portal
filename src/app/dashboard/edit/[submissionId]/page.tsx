@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, AlertCircle, Clock, FileText } from 'lucide-react'
 import Link from 'next/link'
+import { redirectWithRefresh } from '@/lib/redirect-utils'
 import { toast } from 'sonner'
 
 interface SubmissionField {
@@ -296,7 +297,7 @@ export default function EditSubmissionPage() {
       }
 
       toast.success('Submission updated successfully!')
-      router.push('/dashboard')
+      redirectWithRefresh('/dashboard', 1000, 'Submission updated successfully!')
       
     } catch (error) {
       console.error('Error updating submission:', error)

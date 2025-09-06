@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { redirectWithRefresh } from '@/lib/redirect-utils'
+import { useAuthRedirect } from '@/lib/use-refresh-handler'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 export default function SignInPage() {
@@ -22,6 +24,7 @@ export default function SignInPage() {
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
   const router = useRouter()
   const supabase = createSupabaseClient()
+  const { redirectAfterLogin } = useAuthRedirect()
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -48,10 +51,7 @@ export default function SignInPage() {
       } else {
         setMessage('Successfully signed in! Redirecting...')
         setMessageType('success')
-        setTimeout(() => {
-          router.push('/apply')
-          router.refresh()
-        }, 1000)
+        redirectAfterLogin('/apply')
       }
     } catch {
       setMessage('An unexpected error occurred')
