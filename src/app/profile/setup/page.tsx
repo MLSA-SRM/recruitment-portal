@@ -88,8 +88,8 @@ export default function ProfileSetupPage() {
       newErrors.ra_number = 'RA Number is required'
     } else if (formData.ra_number.length !== 15) {
       newErrors.ra_number = 'RA Number must be exactly 15 characters'
-    } else if (!/^RA\d{13}$/.test(formData.ra_number)) {
-      newErrors.ra_number = 'RA Number must start with "RA" followed by 13 digits'
+    } else if (!/^RA(24|25)\d{11}$/.test(formData.ra_number)) {
+      newErrors.ra_number = 'RA Number must start with "RA24" or "RA25" followed by 11 digits'
     }
     if (!formData.department.trim()) newErrors.department = 'Department is required'
     if (!formData.branch.trim()) newErrors.branch = 'Branch is required'
@@ -168,8 +168,8 @@ export default function ProfileSetupPage() {
         newErrors.ra_number = 'RA Number is required'
       } else if (formData.ra_number.length !== 15) {
         newErrors.ra_number = 'RA Number must be exactly 15 characters'
-      } else if (!/^RA\d{13}$/.test(formData.ra_number)) {
-        newErrors.ra_number = 'RA Number must start with "RA" followed by 13 digits'
+      } else if (!/^RA(24|25)\d{11}$/.test(formData.ra_number)) {
+        newErrors.ra_number = 'RA Number must start with "RA24" or "RA25" followed by 11 digits'
       }
       if (!formData.phone_number.trim()) newErrors.phone_number = 'Phone number is required'
     } else if (step === 2) {
@@ -347,7 +347,7 @@ export default function ProfileSetupPage() {
                                   } else if (yearPrefix === '25') {
                                     newData.year = '1' // First year
                                   }
-                                  // Note: RA22 and RA23 are not handled as we only support 1st and 2nd year
+                                  // Only RA24 and RA25 are supported
                                 }
                                 
                                 return newData
@@ -358,12 +358,15 @@ export default function ProfileSetupPage() {
                               }
                             }
                           }}
-                          placeholder="RA22XXXXXXXXXXX"
+                          placeholder="RA24XXXXXXXXXXX or RA25XXXXXXXXXXX"
                           className="h-12 text-base font-mono"
                           maxLength={15}
               required
                         />
-                        <div className="flex justify-end">
+                        <div className="flex justify-between">
+                          <p className="text-xs text-gray-500">
+                            Only RA24 (2nd year) and RA25 (1st year) numbers are accepted
+                          </p>
                           <p className="text-xs text-gray-400">
                             {formData.ra_number.length}/15
                           </p>

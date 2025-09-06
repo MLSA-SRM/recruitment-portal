@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { AlertCircle, User } from 'lucide-react'
 import TaskCard from './task-card'
 
 export default async function ApplyPage() {
@@ -10,19 +12,63 @@ export default async function ApplyPage() {
   // Check if user is authenticated
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Authentication Required</h1>
-          <p className="text-gray-600 mb-6">Please sign in to view and apply for available positions.</p>
-          <Link href="/auth/signin">
-            <Button>Sign In</Button>
-          </Link>
-        </div>
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-destructive">Authentication Required</h1>
+                <p className="text-muted-foreground mt-2">Please sign in to view and apply for available positions.</p>
+              </div>
+              <Link href="/auth/signin">
+                <Button className="mt-4">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
-  // Check if user has a profile
+  // Check if user has completed onboarding
+  const { data: authCheck } = await supabase
+    .from('auth_check')
+    .select('is_onboarding_complete')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!authCheck?.is_onboarding_complete) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-orange-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-orange-800">Profile Setup Required</h1>
+                <p className="text-orange-700 mt-2">Please complete your profile setup to access the dashboard.</p>
+              </div>
+              <Link href="/profile/setup">
+                <Button className="mt-4 bg-orange-600 hover:bg-orange-700">
+                  <User className="h-4 w-4 mr-2" />
+                  Complete Profile Setup
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Get user profile for domain/subdomain filtering
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -31,14 +77,26 @@ export default async function ApplyPage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Profile Setup Required</h1>
-          <p className="text-gray-600 mb-6">Please complete your profile setup before applying for positions.</p>
-          <Link href="/profile/setup">
-            <Button>Complete Profile</Button>
-          </Link>
-        </div>
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-destructive">Profile Not Found</h1>
+                <p className="text-muted-foreground mt-2">There was an issue loading your profile. Please try again.</p>
+              </div>
+              <Link href="/profile/setup">
+                <Button className="mt-4">
+                  <User className="h-4 w-4 mr-2" />
+                  Complete Profile
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
