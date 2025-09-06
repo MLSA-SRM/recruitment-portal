@@ -2,253 +2,247 @@
 
 <div align="center">
 
-[![Next.js](https://img.shields.io/badge/Next.js-14+-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5.2-000000?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-007ACC?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-000000?style=for-the-badge&logo=supabase)](https://supabase.com/)
-[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-AI-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-2.57.0-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-1.5%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 **AI-Powered Club Recruitment Platform**
 
 *Streamlining club recruitment with intelligent automation and seamless user experience*
 
+[🚀 Live Demo](https://recruitment-portal.vercel.app) • [📖 Documentation](https://docs.recruitment-portal.com) • [🐛 Report Bug](https://github.com/MLSA-SRM/recruitment-portal/issues) • [✨ Request Feature](https://github.com/MLSA-SRM/recruitment-portal/issues)
+
 ---
 
 </div>
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Usage](#usage)
-- [AI Integration](#ai-integration)
-- [Database Schema](#database-schema)
-- [API Reference](#api-reference)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
+- [🎯 Overview](#-overview)
+- [✨ Features](#-features)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [🚀 Quick Start](#-quick-start)
+- [📁 Project Structure](#-project-structure)
+- [🤖 AI Integration](#-ai-integration)
+- [🗄️ Database Schema](#️-database-schema)
+- [🔌 API Reference](#-api-reference)
 
 ---
 
-## Features
+## 🎯 Overview
 
-### For Applicants
-- Smart task discovery with filtering by domain, subdomain, and target year
-- Flexible submission options including GitHub repositories, portfolios, and written content
-- Instant AI-powered feedback and scoring on submissions
-- Real-time progress tracking of application status
-- Personal dashboard for viewing all submissions and feedback
+The **MLSA SRM Recruitment Portal** is a comprehensive, AI-powered platform designed to streamline the recruitment process for Microsoft Student Accelerator (MSA) at SRM University. Built with modern web technologies and powered by Google Gemini AI, it provides intelligent automation for task management, submission review, and candidate evaluation.
 
-### For Admins
-- Task management with customizable recruitment positions
-- AI-assisted review system with automated scoring and detailed feedback
-- Advanced filtering capabilities by year, domain, status, and scores
-- Analytics dashboard with real-time insights and statistics
-- Bulk export functionality for shortlisted candidates as CSV
-- Real-time notifications for new submissions
+### 🎯 Key Objectives
 
-### Security & Privacy
-- Row Level Security (RLS) for database-level access control
-- Role-based access control with separate permissions for applicants and admins
-- Secure authentication integration with Supabase Auth
-- Encrypted data storage and transmission
+- **Automate Recruitment**: Reduce manual effort in reviewing applications
+- **Intelligent Evaluation**: AI-powered scoring and feedback system
+- **Enhanced UX**: Modern, responsive interface for all users
+- **Scalable Architecture**: Built to handle high-volume recruitment cycles
+- **Data-Driven Insights**: Analytics and reporting for recruitment teams
 
 ---
 
-## Tech Stack
+## ✨ Features
 
-<div align="center">
+### 👥 For Applicants
 
-### Core Framework
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+| Feature | Description | Benefits |
+|---------|-------------|----------|
+| **Smart Task Discovery** | Filter by domain, subdomain, and target year | Find relevant opportunities quickly |
+| **Flexible Submissions** | GitHub repos, portfolios, documents, and custom fields | Submit work in preferred format |
+| **AI-Powered Feedback** | Instant scoring and detailed review | Get constructive feedback immediately |
+| **Progress Tracking** | Real-time status updates and notifications | Stay informed about application status |
+| **Personal Dashboard** | View all submissions and feedback history | Track progress across multiple applications |
 
-### Styling & UI
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Shadcn/ui](https://img.shields.io/badge/Shadcn%2Fui-000000?style=for-the-badge&logo=shadcn&logoColor=white)
+### 🔧 For Administrators
 
-### Backend & Database
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+| Feature | Description | Benefits |
+|---------|-------------|----------|
+| **Task Management** | Create and manage recruitment positions | Customize requirements and deadlines |
+| **AI Review System** | Automated scoring with detailed feedback | Consistent, unbiased evaluation |
+| **Advanced Filtering** | Filter by year, domain, status, and scores | Efficient candidate screening |
+| **Analytics Dashboard** | Real-time insights and statistics | Data-driven recruitment decisions |
+| **Bulk Operations** | Export shortlisted candidates as CSV | Streamline final selection process |
+| **Real-time Notifications** | Instant alerts for new submissions | Stay updated on application activity |
 
-### AI & APIs
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)
-![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)
+### 🔒 Security & Privacy
 
-### Development Tools
-![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)
-![Prettier](https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=white)
-
-</div>
-
-### Key Dependencies
-- Framework: Next.js 15+ (App Router)
-- Language: TypeScript 5.0+
-- Styling: Tailwind CSS 3.0+
-- UI Components: Shadcn/ui
-- Backend & Database: Supabase (PostgreSQL, Auth, RLS)
-- AI: Google Gemini 1.0+ (via @google/generative-ai)
-- APIs: Octokit (GitHub), Cheerio (web scraping)
-- Utilities: PapaParse (CSV), Lucide React (icons)
+- **Row Level Security (RLS)**: Database-level access control
+- **Role-based Access**: Separate permissions for applicants and admins
+- **Secure Authentication**: Supabase Auth integration
+- **Encrypted Storage**: All data encrypted in transit and at rest
+- **Privacy Compliance**: GDPR-ready data handling
 
 ---
 
-## Quick Start
+## 🛠️ Tech Stack
 
-### Prerequisites
+### 🎨 Frontend
+- **Framework**: Next.js 15.5.2 (App Router)
+- **Language**: TypeScript 5.0+
+- **Styling**: Tailwind CSS 4.0
+- **UI Components**: Shadcn/ui + Radix UI
+- **Icons**: Lucide React
+- **Forms**: React Hook Form + Zod validation
+
+### ⚙️ Backend & Database
+- **Backend**: Next.js API Routes
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
+- **Storage**: Supabase Storage
+
+### 🤖 AI & External APIs
+- **AI Model**: Google Gemini 1.5 Flash
+- **GitHub Integration**: Octokit
+- **Web Scraping**: Cheerio
+- **Data Processing**: PapaParse (CSV)
+
+### 🛠️ Development Tools
+- **Linting**: ESLint 9
+- **Type Checking**: TypeScript
+- **Environment**: T3 Env
+- **Package Manager**: Yarn
+
+---
+
+## 🚀 Quick Start
+
+### 📋 Prerequisites
 
 | Requirement | Version | Description |
 |-------------|---------|-------------|
 | Node.js | 18+ | JavaScript runtime |
-| npm | 9+ | Package manager |
-| Supabase | Latest | Database & Auth |
-| Google AI | Latest | Gemini API access |
+| Yarn | 1.22+ | Package manager |
+| Supabase Account | Latest | Database & Auth |
+| Google AI API Key | Latest | Gemini API access |
 
-### Installation
+### 🔧 Installation
 
-1. Clone the repository
-   ```
+1. **Clone the repository**
+   ```bash
    git clone https://github.com/MLSA-SRM/recruitment-portal.git
-cd recruitment-portal
+   cd recruitment-portal
    ```
 
-2. Install dependencies
+2. **Install dependencies**
+   ```bash
+   yarn install
    ```
-npm install
-```
 
-3. Environment Setup
+3. **Environment Setup**
+   ```bash
+   cp .env.local.example .env.local
    ```
-cp .env.local.example .env.local
-```
 
-   Configure your environment variables:
-   ```
+Configure your environment variables:
+   ```env
    # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
    # AI & External APIs
-GEMINI_API_KEY=your_gemini_api_key
-GITHUB_TOKEN=your_github_personal_access_token
+   GEMINI_API_KEY=your_gemini_api_key
+   GITHUB_TOKEN=your_github_personal_access_token
 
    # Optional: Analytics, Monitoring, etc.
    NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
-4. Database Setup
-   ```
+4. **Database Setup**
+   ```bash
    # Run Supabase migrations
    npx supabase db push
    ```
 
-5. Start Development Server
+5. **Start Development Server**
+   ```bash
+   yarn dev
    ```
-npm run dev
-```
 
-   Your app will be available at http://localhost:3000
+Your app will be available at http://localhost:3000
 
-### Development Commands
-
-```
+### 📜 Available Scripts
+   
+```bash
 # Development
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript checks
+yarn dev          # Start development server
+yarn build        # Build for production
+yarn start        # Start production server
+yarn lint         # Run ESLint
 
 # Database
-npm run db:push      # Push schema changes
-npm run db:reset     # Reset database
-npm run db:seed      # Seed with sample data
+yarn db:push      # Push schema changes
+yarn db:reset     # Reset database
+yarn db:seed      # Seed with sample data
 ```
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 recruitment-portal/
 ├── src/
-│   ├── app/                 # Next.js App Router pages
-│   │   ├── admin/          # Admin dashboard pages
-│   │   ├── api/            # API routes
-│   │   ├── auth/           # Authentication pages
-│   │   ├── dashboard/      # User dashboard
-│   │   └── profile/        # Profile management
-│   ├── components/         # Reusable React components
-│   │   ├── ui/            # Shadcn/ui components
-│   │   └── admin/         # Admin-specific components
-│   └── lib/               # Utility functions & configurations
-│       ├── supabase/      # Database client & middleware
-│       └── types/         # TypeScript type definitions
-├── supabase/              # Database migrations & config
-├── public/                # Static assets
-└── Configuration files    # package.json, tsconfig.json, etc.
+│   ├── app/                    # Next.js App Router
+│   │   ├── admin/             # Admin dashboard pages
+│   │   │   ├── dashboard/     # Analytics & overview
+│   │   │   ├── tasks/         # Task management
+│   │   │   ├── submission/    # Submission review
+│   │   │   └── export/        # Data export
+│   │   ├── api/               # API routes
+│   │   │   ├── submissions/   # Submission endpoints
+│   │   │   ├── tasks/         # Task endpoints
+│   │   │   └── submission-status/ # Status updates
+│   │   ├── auth/              # Authentication pages
+│   │   ├── apply/             # Application pages
+│   │   ├── dashboard/         # User dashboard
+│   │   └── profile/           # Profile management
+│   ├── components/            # Reusable components
+│   │   ├── ui/               # Shadcn/ui components
+│   │   ├── admin-layout.tsx  # Admin layout wrapper
+│   │   ├── navigation.tsx    # Navigation component
+│   │   └── skeleton-*.tsx    # Loading components
+│   └── lib/                  # Utilities & configurations
+│       ├── ai.ts            # AI integration
+│       ├── supabase.ts      # Database client
+│       ├── types.ts         # TypeScript definitions
+│       ├── constants.ts     # App constants
+│       └── utils.ts         # Helper functions
+├── supabase/                 # Database migrations
+│   └── migrations/          # SQL migration files
+├── public/                  # Static assets
+└── Configuration files      # package.json, tsconfig.json, etc.
 ```
 
 ---
 
-## Usage
+## 🤖 AI Integration
 
-### For Applicants
+### 🧠 Intelligent Review System
 
-| Step | Action | Description |
-|------|--------|-------------|
-| 1 | Sign Up/Login | Create account with email or sign in |
-| 2 | Complete Profile | Fill personal details, department, year |
-| 3 | Browse Tasks | Filter by domain, subdomain, target year |
-| 4 | Submit Application | Upload GitHub repo or document link |
-| 5 | Track Progress | Monitor status & view AI feedback |
+The platform uses **Google Gemini 1.5 Flash** for automated submission evaluation with specialized prompts for different submission types:
 
-### For Admins
+#### 📊 Evaluation Criteria
 
-| Step | Action | Description |
-|------|--------|-------------|
-| 1 | Access Dashboard | Navigate to `/admin/dashboard` |
-| 2 | Create Tasks | Define positions with custom requirements |
-| 3 | Review Submissions | View AI scores & detailed feedback |
-| 4 | Make Decisions | Shortlist/reject based on AI review |
-| 5 | Export Results | Download CSV of shortlisted candidates |
+| Submission Type | Focus Areas | Key Metrics |
+|----------------|-------------|-------------|
+| **Technical (1st Year)** | Fundamentals, effort, learning potential | Code quality, functionality, documentation |
+| **Technical (2nd Year)** | Architecture, best practices, task compliance | Framework usage, performance, deployment |
+| **Corporate** | Business suitability, strategic thinking | Feasibility, clarity, persuasion, creativity |
 
----
+#### 🎯 Scoring Algorithm
 
-## AI Integration
+- **Technical Proficiency**: 40% weight
+- **Code Quality**: 30% weight  
+- **Documentation**: 15% weight
+- **Innovation**: 15% weight
 
-### Intelligent Review System
-
-| Submission Type | Analysis Focus | Key Metrics |
-|----------------|----------------|-------------|
-| Technical | Code quality, structure, functionality | Best practices, frameworks, architecture |
-| Corporate | Clarity, tone, creativity | Professional writing, structure, formatting |
-| Creative | Innovation, design, presentation | Originality, aesthetics, user experience |
-
-### AI Review Process
-
-#### Technical Submissions
-- Code Quality Analysis: Modern practices, frameworks, architecture
-- Functionality Assessment: Working features, error handling
-- Documentation Review: README, comments, API docs
-- Security Evaluation: Vulnerabilities, best practices
-
-#### Corporate Submissions
-- Content Analysis: Clarity, professional tone, structure
-- Formatting Review: Organization, readability, presentation
-- Creativity Assessment: Innovation, engagement, uniqueness
-
-#### Scoring Algorithm
-Dynamic scoring based on multiple factors:
-- Technical Proficiency: 40% weight
-- Code Quality: 30% weight
-- Documentation: 15% weight
-- Innovation: 15% weight
+#### 📈 Score Interpretation
 
 | Score Range | Performance Level | Action Required |
 |-------------|-------------------|----------------|
@@ -258,19 +252,27 @@ Dynamic scoring based on multiple factors:
 | 600-699 | Average | May need improvement |
 | < 600 | Below Average | Requires significant work |
 
+### 🔍 Advanced Features
+
+- **URL Validation**: Intelligent detection of legitimate vs. placeholder submissions
+- **Content Analysis**: Detection of AI-generated or template content
+- **Flexible Evaluation**: Handles mixed-quality submissions gracefully
+- **Structured Output**: JSON-formatted responses for consistent parsing
+
 ---
 
-## Database Schema
+## 🗄️ Database Schema
 
-### Core Tables
+### 📋 Core Tables
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| profiles | User information | id, name, email, department, year, is_admin |
-| tasks | Recruitment positions | id, title, description, domain, deadline, created_by |
-| submissions | User applications | id, task_id, applicant_id, submission_url, status, ai_score |
+| `profiles` | User information | id, name, email, department, year, is_admin |
+| `tasks` | Recruitment positions | id, title, description, domain, deadline |
+| `submissions` | User applications | id, task_id, applicant_id, status, ai_score |
+| `submission_fields` | Custom form fields | id, task_id, field_name, field_type, is_required |
 
-### Security Model
+### 🔐 Security Model
 
 | Policy Type | Scope | Permissions |
 |-------------|-------|-------------|
@@ -279,79 +281,57 @@ Dynamic scoring based on multiple factors:
 | Tasks | All users | Read |
 | Admin Access | All data | Full CRUD |
 
+### 🔄 Key Relationships
+
+```mermaid
+erDiagram
+    profiles ||--o{ submissions : "creates"
+    tasks ||--o{ submissions : "receives"
+    tasks ||--o{ submission_fields : "contains"
+    profiles ||--o{ tasks : "creates (admin)"
+```
+
 ---
 
-## API Reference
+## 🔌 API Reference
 
-### Core Endpoints
+### 🎯 Core Endpoints
 
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|---------|
-| POST | /api/submissions | Submit application | Authenticated users |
-| GET | /api/submissions/:id | Get submission details | Owner/Admin |
-| PUT | /api/submissions/:id/status | Update status | Admin only |
-| GET | /api/tasks | List available tasks | All users |
-| POST | /api/tasks | Create new task | Admin only |
-| GET | /api/admin/export | Export candidates CSV | Admin only |
-| POST | /api/submissions/:id/trigger-ai | Trigger AI review | Admin only |
+| `POST` | `/api/submissions` | Submit application | Authenticated users |
+| `GET` | `/api/submissions/:id` | Get submission details | Owner/Admin |
+| `PUT` | `/api/submissions/:id/status` | Update status | Admin only |
+| `GET` | `/api/tasks` | List available tasks | All users |
+| `POST` | `/api/tasks` | Create new task | Admin only |
+| `GET` | `/api/admin/export` | Export candidates CSV | Admin only |
+| `POST` | `/api/submissions/:id/trigger-ai` | Trigger AI review | Admin only |
 
-### Authentication
-- Bearer Token: Supabase JWT in Authorization header
-- Session-based: Automatic via Supabase client
-- Role-based: Admin endpoints require is_admin: true
+### 🔐 Authentication
 
-## Deployment
+- **Bearer Token**: Supabase JWT in Authorization header
+- **Session-based**: Automatic via Supabase client
+- **Role-based**: Admin endpoints require `is_admin: true`
 
-### Vercel (Recommended)
+### 📝 Request/Response Examples
 
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
+#### Submit Application
+```typescript
+POST /api/submissions
+{
+  "task_id": 123,
+  "submission_data": {
+    "github_url": "https://github.com/user/repo",
+    "description": "Project description"
+  }
+}
+```
 
-### Other Platforms
-
-- Ensure environment variables are properly set
-- Configure build command: npm run build
-- Set start command: npm start
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow TypeScript best practices
-- Write clear, concise commit messages
-- Add tests for new features
-- Update documentation as needed
-- Ensure code passes linting and type checking
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support, email contact@example.com or join our Slack channel.
-
-## Roadmap
-
-### Planned Features
-
-- Email notifications for status updates
-- Advanced filtering and search capabilities
-- Bulk operations for admins
-- Analytics dashboard
-- Mobile app development
-- Integration with additional AI providers
-
-### Recent Updates
-
-- Enhanced security with admin role restrictions
-- Improved AI scoring algorithm
-- Better user interface and experience
-- Comprehensive build and deployment setup
+#### AI Review Response
+```typescript
+{
+  "score": 850,
+  "review": "## Code Review - Excellent Implementation\n\n### Summary\nWell-structured React application with modern practices...",
+  "recommendation": "shortlist"
+}
+```
