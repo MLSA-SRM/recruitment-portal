@@ -81,7 +81,7 @@ export default function SignUpPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -90,11 +90,20 @@ export default function SignUpPage() {
       })
 
       if (error) {
-        // Handle specific error cases
-        if (error.message.includes('User already registered') ||
-            error.message.includes('already registered') ||
-            error.message.includes('already been registered') ||
-            error.status === 422) {
+        console.log('Supabase signup error:', error) // Debug log
+        console.log('Error message:', error.message) // Debug log
+        console.log('Error status:', error.status) // Debug log
+
+        // Handle specific error cases for duplicate emails
+        const errorMessage = error.message.toLowerCase()
+        if (errorMessage.includes('user already registered') ||
+            errorMessage.includes('already registered') ||
+            errorMessage.includes('already been registered') ||
+            errorMessage.includes('email already exists') ||
+            errorMessage.includes('duplicate') ||
+            errorMessage.includes('already in use') ||
+            error.status === 422 ||
+            error.status === 400) {
           setMessage('Email already exists. Please login instead.')
           setMessageType('error')
         } else {
@@ -102,11 +111,13 @@ export default function SignUpPage() {
           setMessageType('error')
         }
       } else {
+        console.log('Signup successful:', data) // Debug log
         setMessage('Account created successfully! Please check your email and click the confirmation link to activate your account.')
         setMessageType('success')
       }
-    } catch {
-      setMessage('An unexpected error occurred')
+    } catch (err) {
+      console.error('Unexpected signup error:', err) // Debug log
+      setMessage('An unexpected error occurred. Please try again.')
       setMessageType('error')
     } finally {
       setLoading(false)
