@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 import { env } from '@/env'
 
 // Cache for user sessions to reduce database calls
-const sessionCache = new Map<string, { user: unknown; profile: unknown; timestamp: number }>()
+const sessionCache = new Map<string, { user: unknown; profile: unknown; onboardingComplete: boolean; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 export async function middleware(req: NextRequest) {
@@ -72,30 +72,40 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 
-  // Check cache for user profile
+  // Check cache for user onboarding status
   const cacheKey = user.id
   const cached = sessionCache.get(cacheKey)
   const now = Date.now()
   
+  let onboardingComplete = false
   let profile = null
   
   if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    // Use cached profile
+    // Use cached data
+    onboardingComplete = cached.onboardingComplete
     profile = cached.profile
   } else {
-    // Fetch fresh profile and cache it
+    // Fetch fresh onboarding status and profile
+    const { data: authCheckData } = await supabase
+      .from('auth_check')
+      .select('is_onboarding_complete')
+      .eq('user_id', user.id)
+      .single()
+    
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single()
     
+    onboardingComplete = authCheckData?.is_onboarding_complete || false
     profile = profileData
     
     // Update cache
     sessionCache.set(cacheKey, {
       user,
       profile,
+      onboardingComplete,
       timestamp: now
     })
     
@@ -108,11 +118,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Routes that require a complete profile
-  const profileRequiredRoutes = ['/dashboard', '/apply']
-  const requiresProfile = profileRequiredRoutes.some(route => req.nextUrl.pathname.startsWith(route))
+  // Routes that require completed onboarding
+  const onboardingRequiredRoutes = ['/dashboard', '/apply']
+  const requiresOnboarding = onboardingRequiredRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
-  if (requiresProfile && !profile) {
+  if (requiresOnboarding && !onboardingComplete) {
     return NextResponse.redirect(new URL('/profile/setup', req.url))
   }
 

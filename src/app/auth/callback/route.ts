@@ -11,22 +11,22 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServer()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Check if user already has a profile
+      // Check if user has completed onboarding
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+        const { data: authCheck } = await supabase
+          .from('auth_check')
+          .select('is_onboarding_complete')
+          .eq('user_id', user.id)
           .single()
         
-        if (profile) {
-          // User has a profile, redirect to apply page
+        if (authCheck?.is_onboarding_complete) {
+          // User has completed onboarding, redirect to apply page
           return NextResponse.redirect(`${origin}/apply`)
         }
       }
       
-      // User doesn't have a profile, redirect to profile setup
+      // User hasn't completed onboarding, redirect to profile setup
       return NextResponse.redirect(`${origin}/profile/setup`)
     }
   }

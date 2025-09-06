@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import React from 'react'
-import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye } from 'lucide-react'
+import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 
 export default async function DashboardPage() {
@@ -37,30 +37,30 @@ export default async function DashboardPage() {
     )
   }
 
-  // Check if user has a profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
+  // Check if user has completed onboarding
+  const { data: authCheck } = await supabase
+    .from('auth_check')
+    .select('is_onboarding_complete')
+    .eq('user_id', user.id)
     .single()
 
-  if (!profile) {
+  if (!authCheck?.is_onboarding_complete) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
-                <Users className="h-12 w-12 text-orange-600" />
+                <AlertCircle className="h-12 w-12 text-orange-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-orange-900">Profile Setup Required</h1>
-                <p className="text-orange-700 mt-2">Please complete your profile setup before accessing the dashboard.</p>
+                <h1 className="text-2xl font-semibold text-orange-800">Profile Setup Required</h1>
+                <p className="text-orange-700 mt-2">Please complete your profile setup to access the dashboard.</p>
               </div>
               <Link href="/profile/setup">
-                <Button className="mt-4 bg-orange-600 hover:bg-orange-700 text-white">
-                  <Target className="h-4 w-4 mr-2" />
-                  Complete Profile
+                <Button className="mt-4 bg-orange-600 hover:bg-orange-700">
+                  <User className="h-4 w-4 mr-2" />
+                  Complete Profile Setup
                 </Button>
               </Link>
             </div>
@@ -70,6 +70,34 @@ export default async function DashboardPage() {
     )
   }
 
+  // Get user profile for dashboard display
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <Card className="border-destructive/20">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-destructive">Profile Not Found</h1>
+                <p className="text-muted-foreground mt-2">Your profile could not be found. Please contact support.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Get user submissions
   const { data: submissions } = await supabase
     .from('submissions')
     .select(`
@@ -86,15 +114,12 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
 
   const typedSubmissions = submissions as SubmissionWithTask[]
-
   const now = new Date()
 
   function normalizeDeadlineToEndOfDay(dateLike: string): Date {
     const base = new Date(dateLike)
     return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
   }
-
-  
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
@@ -225,7 +250,6 @@ export default async function DashboardPage() {
                       )}
                     </div>
 
-                    
                     {/* Status Information */}
                     <div className="flex items-center justify-between pt-2 border-t">
                       <div className="flex items-center gap-2">
@@ -246,7 +270,6 @@ export default async function DashboardPage() {
                           </Badge>
                         )}
                       </div>
-                      
                     </div>
                   </div>
                 </CardContent>

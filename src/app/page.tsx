@@ -15,18 +15,18 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   
   if (user) {
-    // User is authenticated, check if they have a profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
+    // User is authenticated, check if they have completed onboarding
+    const { data: authCheck } = await supabase
+      .from('auth_check')
+      .select('is_onboarding_complete')
+      .eq('user_id', user.id)
       .single()
     
-    if (profile) {
-      // User has a profile, redirect to dashboard
+    if (authCheck?.is_onboarding_complete) {
+      // User has completed onboarding, redirect to dashboard
       redirect('/dashboard')
     } else {
-      // User authenticated but no profile, redirect to profile setup
+      // User authenticated but hasn't completed onboarding, redirect to profile setup
       redirect('/profile/setup')
     }
   }

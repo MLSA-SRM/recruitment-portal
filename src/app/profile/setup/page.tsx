@@ -60,15 +60,15 @@ export default function ProfileSetupPage() {
         return
       }
 
-      // Check if user already has a profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
+      // Check if user has already completed onboarding
+      const { data: authCheck } = await supabase
+        .from('auth_check')
+        .select('is_onboarding_complete')
+        .eq('user_id', user.id)
         .single()
 
-      if (profile) {
-        // User already has a profile, redirect to dashboard with refresh
+      if (authCheck?.is_onboarding_complete) {
+        // User has already completed onboarding, redirect to dashboard with refresh
         immediateRedirect('/dashboard')
       }
     }
@@ -136,6 +136,17 @@ export default function ProfileSetupPage() {
           setMessageType('error')
         }
       } else {
+        // Mark onboarding as complete
+        const { error: authCheckError } = await supabase
+          .from('auth_check')
+          .update({ is_onboarding_complete: true, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+
+        if (authCheckError) {
+          console.error('Failed to mark onboarding as complete:', authCheckError)
+          // Don't fail the entire process, just log the error
+        }
+
         setMessage('Profile created successfully! Redirecting...')
         setMessageType('success')
         redirectAfterProfileSetup()

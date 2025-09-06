@@ -96,7 +96,7 @@ export default function SignUpPage() {
     }
 
     try {
-      // Attempt to sign up the user directly
+      // Proceed with signup - let Supabase handle it
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -105,14 +105,7 @@ export default function SignUpPage() {
         }
       })
 
-      console.log('Signup response:', JSON.stringify(data, null, 2))
-      console.log('Signup error:', JSON.stringify(error, null, 2))
-
       if (error) {
-        console.log('Supabase signup error:', error)
-        console.log('Error message:', error.message)
-        console.log('Error status:', error.status)
-
         // Handle specific error cases for duplicate emails
         const errorMessage = error.message.toLowerCase()
         if (errorMessage.includes('user already registered') ||
@@ -130,30 +123,44 @@ export default function SignUpPage() {
           setMessageType('error')
         }
       } else if (data && data.user) {
-        // Check if the user was actually created by examining the identities array
-        console.log('User identities:', JSON.stringify(data.user.identities, null, 2))
-        console.log('User created_at:', data.user.created_at)
-        console.log('User email_confirmed_at:', data.user.email_confirmed_at)
-        
         // Check if this is a new user by looking at identities array
         if (data.user.identities && data.user.identities.length > 0) {
           // New user was created successfully
-          console.log('Signup successful - new user created!')
-          setMessage('Account created successfully! You can now proceed to login.')
+          setMessage('Account created successfully! Please proceed to login.')
           setMessageType('success')
           
-          // Start countdown for redirect
-          setRedirectCountdown(5)
+          // Immediately sign out the user to prevent authentication
+          await supabase.auth.signOut()
+          
+          // Start countdown for redirect to login page
+          setRedirectCountdown(3)
         } else {
           // Email already exists - no identities means existing user
-          console.log('Email already exists - no new identities created')
-          setMessage('This email is already registered. Please sign in instead or use a different email address.')
-          setMessageType('error')
+          // Check if user exists in auth_check table as additional verification
+          const { data: authCheckData } = await supabase
+            .from('auth_check')
+            .select('user_id')
+            .eq('user_id', data.user.id)
+            .single()
+
+          if (authCheckData) {
+            // User exists in auth_check table, so they're an existing user
+            setMessage('This email is already registered. Please sign in instead or use a different email address.')
+            setMessageType('error')
+          } else {
+            // This is actually a new user, proceed with success
+            setMessage('Account created successfully! Please proceed to login.')
+            setMessageType('success')
+            
+            // Immediately sign out the user to prevent authentication
+            await supabase.auth.signOut()
+            
+            // Start countdown for redirect to login page
+            setRedirectCountdown(3)
+          }
         }
       } else {
-        // Fallback case - this shouldn't happen with proper Supabase setup
-        console.log('Unexpected response structure')
-        console.log('Data:', data)
+        // Fallback case
         setMessage('An unexpected error occurred. Please try again.')
         setMessageType('error')
       }
