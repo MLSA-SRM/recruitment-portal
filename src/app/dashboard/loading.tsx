@@ -1,6 +1,5 @@
-export default function Loading() {
-  return (
-    <div className="p-6">Loading dashboard…</div>
-  )
-}
+import { DashboardPageSkeleton } from '@/components/skeleton-loaders'
 
+export default function Loading() {
+  return <DashboardPageSkeleton />
+}

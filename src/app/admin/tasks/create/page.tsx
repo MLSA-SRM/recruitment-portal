@@ -16,6 +16,7 @@ import SubmissionFieldsManager from '@/components/submission-fields-manager'
 import { type SubmissionField } from '@/lib/types'
 import { toast } from 'sonner'
 import { createSupabaseClient } from '@/lib/supabase-client'
+import { CreateTaskPageSkeleton } from '@/components/skeleton-loaders'
 import NextImage from 'next/image'
 
 export default function CreateTaskPage() {

@@ -1,4 +1,5 @@
-export default function Loading() {
-  return <div className="p-6">Loading opportunities…</div>
-}
+import { ApplyPageSkeleton } from '@/components/skeleton-loaders'
 
+export default function Loading() {
+  return <ApplyPageSkeleton />
+}

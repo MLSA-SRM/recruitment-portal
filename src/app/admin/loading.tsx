@@ -1,4 +1,6 @@
+import { AdminLoadingSkeleton } from '@/components/skeleton-loaders'
+
 export default function Loading() {
-  return <div className="p-6">Loading admin…</div>
+  return <AdminLoadingSkeleton />
 }
 
