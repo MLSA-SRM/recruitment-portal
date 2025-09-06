@@ -1098,11 +1098,19 @@ export async function canSubmitToTask(taskId: number) {
 }
 
 export async function deleteTask(taskId: number) {
-  console.log('deleteTask called with taskId:', taskId)
+  console.log('🔥 deleteTask FUNCTION STARTED with taskId:', taskId)
+  console.log('🔥 deleteTask function is executing...')
 
   const supabase = await createSupabaseServer()
+  console.log('🔥 Supabase client created')
+
   const userId = await getCurrentUserId()
-  if (!userId) throw new Error('Not authenticated')
+  console.log('🔥 getCurrentUserId result:', userId)
+
+  if (!userId) {
+    console.log('🔥 No user ID found, throwing error')
+    throw new Error('Not authenticated')
+  }
 
   // Check if user is admin
   const { data: profile } = await supabase
