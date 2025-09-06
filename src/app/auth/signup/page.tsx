@@ -81,6 +81,22 @@ export default function SignUpPage() {
     }
 
     try {
+      // First, check if user already exists by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'dummy_password_that_wont_work' // This will fail but tell us if email exists
+      })
+
+      // If sign in succeeds, email definitely exists
+      if (!signInError || signInError.message.includes('Invalid login credentials')) {
+        console.log('Email already exists in system')
+        setMessage('Email already exists. Please login instead.')
+        setMessageType('error')
+        setLoading(false)
+        return
+      }
+
+      // If we get here, proceed with normal signup
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -90,9 +106,9 @@ export default function SignUpPage() {
       })
 
       if (error) {
-        console.log('Supabase signup error:', error) // Debug log
-        console.log('Error message:', error.message) // Debug log
-        console.log('Error status:', error.status) // Debug log
+        console.log('Supabase signup error:', error)
+        console.log('Error message:', error.message)
+        console.log('Error status:', error.status)
 
         // Handle specific error cases for duplicate emails
         const errorMessage = error.message.toLowerCase()
@@ -111,12 +127,12 @@ export default function SignUpPage() {
           setMessageType('error')
         }
       } else {
-        console.log('Signup successful:', data) // Debug log
+        console.log('Signup successful:', data)
         setMessage('Account created successfully! Please check your email and click the confirmation link to activate your account.')
         setMessageType('success')
       }
     } catch (err) {
-      console.error('Unexpected signup error:', err) // Debug log
+      console.error('Unexpected signup error:', err)
       setMessage('An unexpected error occurred. Please try again.')
       setMessageType('error')
     } finally {
