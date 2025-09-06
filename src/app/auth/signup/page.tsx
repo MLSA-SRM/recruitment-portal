@@ -90,8 +90,17 @@ export default function SignUpPage() {
       })
 
       if (error) {
-        setMessage(error.message)
-        setMessageType('error')
+        // Handle specific error cases
+        if (error.message.includes('User already registered') ||
+            error.message.includes('already registered') ||
+            error.message.includes('already been registered') ||
+            error.status === 422) {
+          setMessage('Email already exists. Please login instead.')
+          setMessageType('error')
+        } else {
+          setMessage(error.message)
+          setMessageType('error')
+        }
       } else {
         setMessage('Account created successfully! Please check your email and click the confirmation link to activate your account.')
         setMessageType('success')
