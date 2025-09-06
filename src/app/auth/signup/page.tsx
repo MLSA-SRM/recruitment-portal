@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2, UserPlus } from 'lucide-react'
 
 export default function SignUpPage() {
@@ -21,7 +22,21 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
+  const [redirectCountdown, setRedirectCountdown] = useState(0)
   const supabase = createSupabaseClient()
+  const router = useRouter()
+
+  // Handle redirect countdown
+  useEffect(() => {
+    if (redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(redirectCountdown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else if (redirectCountdown === 0 && messageType === 'success' && message.includes('Account created successfully')) {
+      router.push('/auth/signin')
+    }
+  }, [redirectCountdown, messageType, message, router])
 
   const getPasswordStrength = (password: string) => {
     let strength = 0
@@ -81,22 +96,7 @@ export default function SignUpPage() {
     }
 
     try {
-      // First, check if user already exists by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'dummy_password_that_wont_work' // This will fail but tell us if email exists
-      })
-
-      // If sign in succeeds, email definitely exists
-      if (!signInError || signInError.message.includes('Invalid login credentials')) {
-        console.log('Email already exists in system')
-        setMessage('Email already exists. Please login instead.')
-        setMessageType('error')
-        setLoading(false)
-        return
-      }
-
-      // If we get here, proceed with normal signup
+      // Attempt to sign up the user directly
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -104,6 +104,9 @@ export default function SignUpPage() {
           emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
+
+      console.log('Signup response:', JSON.stringify(data, null, 2))
+      console.log('Signup error:', JSON.stringify(error, null, 2))
 
       if (error) {
         console.log('Supabase signup error:', error)
@@ -120,16 +123,39 @@ export default function SignUpPage() {
             errorMessage.includes('already in use') ||
             error.status === 422 ||
             error.status === 400) {
-          setMessage('Email already exists. Please login instead.')
+          setMessage('This email is already registered. Please sign in instead or use a different email address.')
           setMessageType('error')
         } else {
           setMessage(error.message)
           setMessageType('error')
         }
+      } else if (data && data.user) {
+        // Check if the user was actually created by examining the identities array
+        console.log('User identities:', JSON.stringify(data.user.identities, null, 2))
+        console.log('User created_at:', data.user.created_at)
+        console.log('User email_confirmed_at:', data.user.email_confirmed_at)
+        
+        // Check if this is a new user by looking at identities array
+        if (data.user.identities && data.user.identities.length > 0) {
+          // New user was created successfully
+          console.log('Signup successful - new user created!')
+          setMessage('Account created successfully! You can now proceed to login.')
+          setMessageType('success')
+          
+          // Start countdown for redirect
+          setRedirectCountdown(5)
+        } else {
+          // Email already exists - no identities means existing user
+          console.log('Email already exists - no new identities created')
+          setMessage('This email is already registered. Please sign in instead or use a different email address.')
+          setMessageType('error')
+        }
       } else {
-        console.log('Signup successful:', data)
-        setMessage('Account created successfully! Please check your email and click the confirmation link to activate your account.')
-        setMessageType('success')
+        // Fallback case - this shouldn't happen with proper Supabase setup
+        console.log('Unexpected response structure')
+        console.log('Data:', data)
+        setMessage('An unexpected error occurred. Please try again.')
+        setMessageType('error')
       }
     } catch (err) {
       console.error('Unexpected signup error:', err)
@@ -295,6 +321,18 @@ export default function SignUpPage() {
                   )}
                   <AlertDescription className={messageType === 'success' ? 'text-green-800' : ''}>
                     {message}
+                    {redirectCountdown > 0 && messageType === 'success' && message.includes('Account created successfully') && (
+                      <div className="mt-2 text-sm text-green-700">
+                        <div>Redirecting to login page in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...</div>
+                        <button
+                          type="button"
+                          onClick={() => router.push('/auth/signin')}
+                          className="mt-1 text-blue-600 hover:text-blue-800 underline text-xs"
+                        >
+                          Click here to go to login now
+                        </button>
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
