@@ -1098,6 +1098,8 @@ export async function canSubmitToTask(taskId: number) {
 }
 
 export async function deleteTask(taskId: number) {
+  console.log('deleteTask called with taskId:', taskId)
+
   const supabase = await createSupabaseServer()
   const userId = await getCurrentUserId()
   if (!userId) throw new Error('Not authenticated')
@@ -1109,53 +1111,62 @@ export async function deleteTask(taskId: number) {
     .eq('id', userId)
     .single()
 
+  console.log('User profile check:', { userId, isAdmin: profile?.is_admin })
+
   if (!profile?.is_admin) {
     throw new Error('Unauthorized: Admin access required')
   }
 
   try {
     // First, delete all related data in the correct order to avoid foreign key constraints
-    
+
     // 1. Delete submission field values (if any exist)
     // First get all submission IDs for this task
+    console.log('Step 1: Getting submissions for task', taskId)
     const { data: submissions } = await supabase
       .from('submissions')
       .select('id')
       .eq('task_id', taskId)
-    
+
+    console.log('Found submissions:', submissions?.length || 0)
+
     if (submissions && submissions.length > 0) {
       const submissionIds = submissions.map(s => s.id)
+      console.log('Deleting submission field values for submission IDs:', submissionIds)
       const { error: submissionFieldValuesError } = await supabase
         .from('submission_field_values')
         .delete()
         .in('submission_id', submissionIds)
-      
+
       if (submissionFieldValuesError) {
         console.warn('Warning deleting submission field values:', submissionFieldValuesError)
       }
     }
 
     // 2. Delete submission fields for this task
+    console.log('Step 2: Deleting submission fields for task', taskId)
     const { error: submissionFieldsError } = await supabase
       .from('submission_fields')
       .delete()
       .eq('task_id', taskId)
-    
+
     if (submissionFieldsError) {
       console.warn('Warning deleting submission fields:', submissionFieldsError)
     }
 
     // 3. Delete submissions for this task
+    console.log('Step 3: Deleting submissions for task', taskId)
     const { error: submissionsError } = await supabase
       .from('submissions')
       .delete()
       .eq('task_id', taskId)
-    
+
     if (submissionsError) {
       console.warn('Warning deleting submissions:', submissionsError)
     }
 
     // 4. Finally, delete the task itself
+    console.log('Step 4: Deleting task', taskId)
     const { error: taskError } = await supabase
       .from('tasks')
       .delete()
@@ -1166,6 +1177,7 @@ export async function deleteTask(taskId: number) {
       throw taskError
     }
 
+    console.log('Task deletion completed successfully')
     return { ok: true }
   } catch (error) {
     console.error('Error in deleteTask:', error)
