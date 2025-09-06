@@ -13,11 +13,6 @@ interface UseRefreshHandlerOptions {
   refreshOnMount?: boolean
   
   /**
-   * Whether to refresh the page when authentication state changes
-   */
-  refreshOnAuthChange?: boolean
-  
-  /**
    * Custom refresh function
    */
   customRefresh?: () => void
@@ -28,7 +23,7 @@ interface UseRefreshHandlerOptions {
  */
 export function useRefreshHandler(options: UseRefreshHandlerOptions = {}) {
   const router = useRouter()
-  const { refreshOnMount = false, refreshOnAuthChange = false, customRefresh } = options
+  const { refreshOnMount = false, customRefresh } = options
 
   const refreshPage = useCallback(() => {
     if (customRefresh) {

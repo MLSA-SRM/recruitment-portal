@@ -2,6 +2,8 @@
  * Utility functions for handling redirects and page refreshes
  */
 
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+
 /**
  * Performs a hard redirect with a delay to ensure proper state cleanup
  * @param url - The URL to redirect to
@@ -38,7 +40,7 @@ export function immediateRedirect(url: string): void {
  * @param delay - Delay in milliseconds before redirect (default: 0)
  */
 export function softRedirect(
-  router: any, 
+  router: AppRouterInstance, 
   url: string, 
   delay: number = 0
 ): void {
@@ -84,7 +86,7 @@ export function shouldUseHardRedirect(fromPage: string, toPage: string): boolean
  * @param message - Optional message to show before redirect
  */
 export function smartRedirect(
-  router: any,
+  router: AppRouterInstance,
   url: string,
   fromPage: string,
   delay: number = 1000,

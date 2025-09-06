@@ -9,9 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { redirectWithRefresh } from '@/lib/redirect-utils'
 import { useAuthRedirect } from '@/lib/use-refresh-handler'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
@@ -22,7 +20,6 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
-  const router = useRouter()
   const supabase = createSupabaseClient()
   const { redirectAfterLogin } = useAuthRedirect()
 
