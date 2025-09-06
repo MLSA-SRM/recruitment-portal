@@ -746,9 +746,6 @@ const createTaskSchema = z.object({
 })
 
 export async function createTask(formData: FormData) {
-  const submissionId = formData.get('submissionId')
-  const timestamp = formData.get('timestamp')
-  console.log('createTask action called with submission ID:', submissionId, 'at timestamp:', timestamp)
   
   const supabase = await createSupabaseServer()
   const userId = await getCurrentUserId()
@@ -770,7 +767,6 @@ export async function createTask(formData: FormData) {
   if (!parsed.success) throw new Error('Invalid task payload')
   const { title, description, domain, subdomain, target_year: targetYear, deadline, estimated_duration: estimatedDuration, requirements, deliverables, image_url: imageUrl, submissionFields: submissionFieldsData } = parsed.data
   
-  console.log('Task data to create:', { title, domain, subdomain, targetYear, deadline })
   
   // Get submission fields from form data
   let submissionFields: Record<string, unknown>[] = []
@@ -799,9 +795,8 @@ export async function createTask(formData: FormData) {
   }
 
   // Create the task first
-  console.log('Inserting task into database...')
   // For now, only insert the columns that exist in the current schema
-  // TODO: Run migration to add requirements, deliverables, and created_by columns
+
   const { data: task, error: taskError } = await supabase
     .from('tasks')
     .insert({
@@ -824,11 +819,9 @@ export async function createTask(formData: FormData) {
     throw taskError
   }
 
-  console.log('Task created with ID:', task.id)
 
   // Create submission fields if any
   if (submissionFields.length > 0) {
-    console.log('Creating submission fields...')
     const fieldsToInsert = submissionFields.map(field => ({
       task_id: task.id,
       field_name: field.field_name,
@@ -849,11 +842,9 @@ export async function createTask(formData: FormData) {
       console.error('Failed to create submission fields:', fieldsError)
       // Don't fail the entire operation if fields fail
     } else {
-      console.log('Submission fields created successfully')
     }
   }
 
-  console.log('createTask action completed successfully')
   return { ok: true, taskId: task.id }
 }
 
@@ -1098,28 +1089,20 @@ export async function canSubmitToTask(taskId: number) {
 }
 
 export async function deleteTask(taskId: number) {
-  console.log('🔥 deleteTask FUNCTION STARTED with taskId:', taskId)
-  console.log('🔥 deleteTask function is executing...')
-
   const supabase = await createSupabaseServer()
-  console.log('🔥 Supabase client created')
-
   const userId = await getCurrentUserId()
-  console.log('🔥 getCurrentUserId result:', userId)
-
-  if (!userId) {
-    console.log('🔥 No user ID found, throwing error')
-    throw new Error('Not authenticated')
-  }
+  if (!userId) throw new Error('Not authenticated')
 
   // Check if user is admin
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('is_admin')
     .eq('id', userId)
     .single()
 
-  console.log('User profile check:', { userId, isAdmin: profile?.is_admin })
+  if (profileError) {
+    throw new Error('Failed to verify admin status')
+  }
 
   if (!profile?.is_admin) {
     throw new Error('Unauthorized: Admin access required')
@@ -1129,18 +1112,13 @@ export async function deleteTask(taskId: number) {
     // First, delete all related data in the correct order to avoid foreign key constraints
 
     // 1. Delete submission field values (if any exist)
-    // First get all submission IDs for this task
-    console.log('Step 1: Getting submissions for task', taskId)
     const { data: submissions } = await supabase
       .from('submissions')
       .select('id')
       .eq('task_id', taskId)
 
-    console.log('Found submissions:', submissions?.length || 0)
-
     if (submissions && submissions.length > 0) {
       const submissionIds = submissions.map(s => s.id)
-      console.log('Deleting submission field values for submission IDs:', submissionIds)
       const { error: submissionFieldValuesError } = await supabase
         .from('submission_field_values')
         .delete()
@@ -1152,7 +1130,6 @@ export async function deleteTask(taskId: number) {
     }
 
     // 2. Delete submission fields for this task
-    console.log('Step 2: Deleting submission fields for task', taskId)
     const { error: submissionFieldsError } = await supabase
       .from('submission_fields')
       .delete()
@@ -1163,7 +1140,6 @@ export async function deleteTask(taskId: number) {
     }
 
     // 3. Delete submissions for this task
-    console.log('Step 3: Deleting submissions for task', taskId)
     const { error: submissionsError } = await supabase
       .from('submissions')
       .delete()
@@ -1173,19 +1149,24 @@ export async function deleteTask(taskId: number) {
       console.warn('Warning deleting submissions:', submissionsError)
     }
 
-    // 4. Finally, delete the task itself
-    console.log('Step 4: Deleting task', taskId)
-    const { error: taskError } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', taskId)
-
-    if (taskError) {
-      console.error('Error deleting task:', taskError)
-      throw taskError
+    // 4. Finally, delete the task itself using admin RPC function (bypasses RLS)
+    const { error: rpcDeleteError } = await supabase
+      .rpc('delete_task_admin', { task_id: taskId })
+    
+    // If RPC doesn't exist, try regular delete
+    if (rpcDeleteError && rpcDeleteError.message.includes('function') && rpcDeleteError.message.includes('does not exist')) {
+      const { error: regularDeleteError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId)
+      
+      if (regularDeleteError) {
+        throw regularDeleteError
+      }
+    } else if (rpcDeleteError) {
+      throw rpcDeleteError
     }
 
-    console.log('Task deletion completed successfully')
     return { ok: true }
   } catch (error) {
     console.error('Error in deleteTask:', error)

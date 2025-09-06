@@ -87,11 +87,7 @@ export default function TasksPage() {
     }
 
     try {
-      console.log('Starting task deletion for task ID:', taskId)
-      console.log('deleteTask function:', deleteTask)
-      console.log('Calling deleteTask with taskId:', taskId)
-      const result = await deleteTask(taskId)
-      console.log('Task deletion result:', result)
+      await deleteTask(taskId)
 
       // Reload tasks after deletion
       await loadTasks()

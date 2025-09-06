@@ -323,7 +323,7 @@ export default function TaskCard({ task }: TaskCardProps) {
       {/* Card Footer */}
       <CardFooter className="pt-4 border-t bg-muted/30">
         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-2">
-          <Link href={`/apply/${task.id}`} className="block">
+          <Link href={`/apply/task/${task.id}`} className="block">
             <Button variant="outline" size="sm" className="w-full h-10 font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
               <Eye className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">View Full Details</span>
