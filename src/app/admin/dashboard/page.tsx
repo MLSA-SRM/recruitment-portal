@@ -10,7 +10,6 @@ import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/acti
 import { revalidatePath } from 'next/cache'
 import { AdminLayout } from '@/components/admin-layout'
 import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
-import { DashboardSkeleton } from '@/components/skeleton-loaders'
 import { 
   Users, 
   FileText, 

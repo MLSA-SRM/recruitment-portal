@@ -34,7 +34,7 @@
 
 ## 🎯 Overview
 
-The **MLSA SRM Recruitment Portal** is a comprehensive, AI-powered platform designed to streamline the recruitment process for Microsoft Student Accelerator (MSA) at SRM University. Built with modern web technologies and powered by Google Gemini AI, it provides intelligent automation for task management, submission review, and candidate evaluation.
+The **MLSA SRM Recruitment Portal** is a comprehensive, AI-powered platform designed to streamline the recruitment process for Microsoft Student Ambassadors (MSA) at SRM University. Built with modern web technologies and powered by Google Gemini AI, it provides intelligent automation for task management, submission review, and candidate evaluation.
 
 ### 🎯 Key Objectives
 

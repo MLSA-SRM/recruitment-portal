@@ -10,7 +10,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AdminLayout } from '@/components/admin-layout'
 import MarkdownRenderer from '@/components/markdown-renderer'
-import { TasksPageSkeleton } from '@/components/skeleton-loaders'
 import { deleteTask } from '@/app/actions'
 import { 
   Plus, 

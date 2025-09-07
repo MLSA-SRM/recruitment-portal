@@ -96,9 +96,8 @@ async function scrapePageText(url: string): Promise<string> {
 
 function getAiRecommendation(score: number | null | undefined): 'shortlist' | 'reject' | null {
   if (typeof score !== 'number') return null
-  if (score >= 800) return 'shortlist'
-  if (score <= 400) return 'reject'
-  return null
+  if (score >= 400) return 'shortlist'
+  return 'reject'
 }
 
 async function performAIReview(opts: {
@@ -122,30 +121,47 @@ async function performAIReview(opts: {
     submissionDataPreview: submissionData ? JSON.stringify(submissionData, null, 2).slice(0, 500) : 'null'
   })
 
-  // Basic URL validation - only check for completely empty or malformed URLs
-  const urlsToValidate: string[] = []
-  if (submissionUrl) urlsToValidate.push(submissionUrl)
-  
-  if (submissionData) {
-    Object.entries(submissionData).forEach(([, fieldInfo]) => {
-      if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
-        const { value, type } = fieldInfo as { value: unknown; type: string }
-        if (type === 'url' && typeof value === 'string' && value.trim()) {
-          urlsToValidate.push(value.trim())
-        }
-      }
-    })
-  }
+  // Get task info first to determine if URL validation is needed
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('title, description, domain, subdomain, target_year, deadline, image_url')
+    .eq('id', taskId)
+    .single()
 
-  const urlValidation = validateSubmissionUrls(urlsToValidate)
+  // Basic URL validation - only check for completely empty or malformed URLs
+  // IMPORTANT: Skip URL validation entirely for Corporate and Creatives domains
+  const urlsToValidate: string[] = []
+  let urlValidation: { isValid: boolean; isPlaceholder: boolean; reason?: string; legitimateUrls: string[]; invalidUrls: string[] } = { 
+    isValid: true, 
+    isPlaceholder: false, 
+    reason: '', 
+    legitimateUrls: [], 
+    invalidUrls: [] 
+  }
   
-  // Only reject if ALL URLs are invalid
-  if (!urlValidation.isValid && urlValidation.isPlaceholder) {
-    console.log(`[AI][${context}] All URLs are invalid:`, urlValidation.reason)
+  if (task?.domain !== 'Corporate' && task?.domain !== 'Creatives') {
+    if (submissionUrl) urlsToValidate.push(submissionUrl)
     
-    const { error: invalidUrlError } = await supabase.from('submissions').update({
-      ai_score: 0, // Score 0 for completely invalid URLs
-      ai_review: `**AI Review - Invalid Submission**
+    if (submissionData) {
+      Object.entries(submissionData).forEach(([, fieldInfo]) => {
+        if (fieldInfo && typeof fieldInfo === 'object' && 'value' in fieldInfo) {
+          const { value, type } = fieldInfo as { value: unknown; type: string }
+          if (type === 'url' && typeof value === 'string' && value.trim()) {
+            urlsToValidate.push(value.trim())
+          }
+        }
+      })
+    }
+
+    urlValidation = validateSubmissionUrls(urlsToValidate)
+    
+    // Only reject if ALL URLs are invalid (and the domain requires URLs)
+    if (!urlValidation.isValid && urlValidation.isPlaceholder && task?.domain !== 'Corporate' && task?.domain !== 'Creatives') {
+      console.log(`[AI][${context}] All URLs are invalid:`, urlValidation.reason)
+      
+      const { error: invalidUrlError } = await supabase.from('submissions').update({
+        ai_score: 0, // Score 0 for completely invalid URLs
+        ai_review: `**AI Review - Invalid Submission**
 
 ## Summary
 This submission contains only invalid or malformed URLs (${urlValidation.reason}) and cannot be properly evaluated.
@@ -169,13 +185,18 @@ This submission contains only invalid or malformed URLs (${urlValidation.reason}
 - **Test links**: Verify all URLs work before submitting
 
 **Note**: Please resubmit with properly formatted, working URLs.`,
-      ai_recommendation: 'reject'
-    }).eq('id', submissionId)
-    
-    if (invalidUrlError) {
-      console.error(`[AI][${context}] Failed to update invalid URL rejection:`, invalidUrlError)
+        ai_recommendation: 'reject'
+      }).eq('id', submissionId)
+      
+      if (invalidUrlError) {
+        console.error(`[AI][${context}] Failed to update invalid URL rejection:`, invalidUrlError)
+      }
+      return
     }
-    return
+  } else {
+    console.log(`[AI][${context}] Skipping URL validation for ${task?.domain} domain task`)
+    // Ensure validation cannot trip later logic
+    urlValidation = { isValid: true, isPlaceholder: false, reason: undefined, legitimateUrls: [], invalidUrls: [] }
   }
 
   // Log URL validation results for debugging
@@ -187,11 +208,6 @@ This submission contains only invalid or malformed URLs (${urlValidation.reason}
     })
   }
 
-  const { data: task } = await supabase
-    .from('tasks')
-    .select('title, description, domain, subdomain, target_year, deadline, image_url')
-    .eq('id', taskId)
-    .single()
   const { data: profile } = await supabase.from('profiles').select('year').eq('id', userId).single()
 
   // Set in-progress message
@@ -308,6 +324,7 @@ This submission contains only invalid or malformed URLs (${urlValidation.reason}
     
     // Check if we have any content from submission fields
     // submissionContent starts with a header, so we need at least 2 items (header + 1 field)
+    // For corporate tasks, we only need text content, not URLs
     if (submissionContent.length > 1) { // More than just the header
       hasValidContent = true
       console.log(`[AI][${context}] Valid content found from submission fields: ${submissionContent.length - 1} fields`)
@@ -315,10 +332,47 @@ This submission contains only invalid or malformed URLs (${urlValidation.reason}
       console.log(`[AI][${context}] No valid content from submission fields: ${submissionContent.length} items`)
     }
     
+    // For corporate tasks, if we have text content in submission fields, that's sufficient
+    if (task?.domain === 'Corporate' && submissionContent.length > 1) {
+      hasValidContent = true
+      console.log(`[AI][${context}] Corporate task with text content - marking as valid`)
+    }
+    
     content = submissionContent.join('\n\n')
     
     // Enhanced fake submission detection combining URL and content analysis
-    const fakeDetection = detectFakeSubmission(urlsToValidate, content)
+    // Skip fake detection for corporate tasks as they don't require URLs
+    let fakeDetection: { isFake: boolean; confidence: number; reasons: string[]; shouldAwardZero: boolean } = { 
+      isFake: false, 
+      confidence: 0, 
+      reasons: [], 
+      shouldAwardZero: false 
+    }
+    // Initialize default AI detection state
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const defaultAiDetection: { isAIGenerated: boolean; confidence: number; reasons: string[]; shouldReducePoints: boolean } = { 
+      isAIGenerated: false, 
+      confidence: 0, 
+      reasons: [], 
+      shouldReducePoints: false 
+    }
+    
+    if (task?.domain !== 'Corporate') {
+      fakeDetection = detectFakeSubmission(urlsToValidate, content)
+    } else {
+      // For corporate tasks, check for AI-generated content instead
+      const { detectAIGeneratedContent } = await import('@/lib/ai')
+      const aiDetection = detectAIGeneratedContent(content)
+      
+      // Use aiDetection for logging or future processing if needed
+      if (aiDetection.isAIGenerated) {
+        console.log(`[AI][${context}] AI-generated content detected:`, {
+          confidence: aiDetection.confidence,
+          reasons: aiDetection.reasons,
+        })
+      }
+    }
+    
     if (fakeDetection.isFake && fakeDetection.shouldAwardZero) {
       console.log(`[AI][${context}] Fake submission detected:`, {
         confidence: fakeDetection.confidence,
@@ -370,7 +424,7 @@ This submission appears to be fake, placeholder, or contains no actual work. Ple
         const { error: skipCreativesError } = await supabase.from('submissions').update({
           ai_score: 0,
           ai_review: 'AI review skipped: Creatives submissions are manually reviewed. No AI score assigned.',
-          ai_recommendation: 'neutral'
+          ai_recommendation: 'reject'
         }).eq('id', submissionId)
         if (skipCreativesError) {
           console.error(`[AI][${context}] Failed to write creatives skip message:`, skipCreativesError)
@@ -406,29 +460,100 @@ This submission appears to be fake, placeholder, or contains no actual work. Ple
     console.log(`[AI][${context}] Calling model for submission ${submissionId}`)
     const model = getGeminiModel('gemini-2.0-flash')
     
-    // Add enhanced URL analysis for mixed quality submissions
-    const { analyzeMixedUrlSubmission } = await import('@/lib/ai')
-    const mixedUrlAnalysis = analyzeMixedUrlSubmission(urlsToValidate, content)
+    // Add enhanced URL analysis for mixed quality submissions (only for non-corporate tasks)
+    let urlAnalysisContext = ''
+    
+    // Get advanced AI usage evaluation for all tasks
+    let aiUsageEvaluation: { 
+      usageQuality: 'excellent' | 'good' | 'acceptable' | 'poor' | 'undetected'
+      confidence: number
+      reasons: string[]
+      recommendations: string[]
+      score: number
+    } = { 
+      usageQuality: 'undetected', 
+      confidence: 0, 
+      reasons: [], 
+      recommendations: [],
+      score: 100
+    }
+    
+    // Determine submission type for AI evaluation
+    let submissionType: 'tech_first_year' | 'tech_second_year' | 'corporate'
+    if (task?.domain === 'Corporate') {
+      submissionType = 'corporate'
+    } else if (task?.domain === 'Technical') {
+      const isFirstYear = (profile?.year ?? 1) <= 1
+      submissionType = isFirstYear ? 'tech_first_year' : 'tech_second_year'
+    } else {
+      submissionType = 'tech_first_year' // Default fallback
+    }
+    
+    const { evaluateAIUsage } = await import('@/lib/ai')
+    aiUsageEvaluation = evaluateAIUsage(content, submissionType)
+    if (task?.domain !== 'Corporate') {
+      const { analyzeMixedUrlSubmission } = await import('@/lib/ai')
+      const mixedUrlAnalysis = analyzeMixedUrlSubmission(urlsToValidate, content)
+      
+      // Add URL analysis and AI evaluation context to the prompt
+      let aiTechEvaluationContext = ''
+      if (aiUsageEvaluation.usageQuality !== 'undetected') {
+        const qualityMap = {
+          excellent: 'EXCELLENT AI Integration',
+          good: 'GOOD AI Usage',
+          acceptable: 'ACCEPTABLE AI Usage',
+          poor: 'POOR AI Usage'
+        }
+        
+        aiTechEvaluationContext = `\n\nADVANCED AI USAGE ASSESSMENT:
+Quality: ${qualityMap[aiUsageEvaluation.usageQuality as keyof typeof qualityMap]} (${Math.round(aiUsageEvaluation.confidence * 100)}% confidence)
+Analysis: ${aiUsageEvaluation.reasons.join('; ')}
+Scoring Impact: ${aiUsageEvaluation.usageQuality === 'poor' ? 'Significantly reduce AI Integration & Originality score' : aiUsageEvaluation.usageQuality === 'excellent' ? 'Award high points for strategic AI integration' : 'Score based on quality of integration and understanding'}
+Recommendations: ${aiUsageEvaluation.recommendations.join('; ')}`
+      }
+      
+      urlAnalysisContext = mixedUrlAnalysis.shouldEvaluate 
+        ? `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}${aiTechEvaluationContext}`
+        : `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}${aiTechEvaluationContext}`
+    } else {
+      // For corporate tasks, add context about text-based evaluation and advanced AI assessment
+      let aiEvaluationContext = ''
+      if (aiUsageEvaluation.usageQuality !== 'undetected') {
+        const qualityMap = {
+          excellent: 'EXCELLENT AI Integration',
+          good: 'GOOD AI Usage',
+          acceptable: 'ACCEPTABLE AI Usage',
+          poor: 'POOR AI Usage'
+        }
+        
+        aiEvaluationContext = `\n\nADVANCED AI USAGE ASSESSMENT:
+Quality: ${qualityMap[aiUsageEvaluation.usageQuality as keyof typeof qualityMap]} (${Math.round(aiUsageEvaluation.confidence * 100)}% confidence)
+Analysis: ${aiUsageEvaluation.reasons.join('; ')}
+Scoring Impact: ${aiUsageEvaluation.usageQuality === 'poor' ? 'Significantly reduce Authenticity & AI Ethics score' : aiUsageEvaluation.usageQuality === 'excellent' ? 'Award high points for strategic AI integration' : 'Score based on quality of integration'}
+Recommendations: ${aiUsageEvaluation.recommendations.join('; ')}`
+      }
+      
+      urlAnalysisContext = `\n\nEVALUATION GUIDANCE:\nThis is a corporate task that should be evaluated based on the text content provided in the submission fields. Focus on business acumen, strategic thinking, professionalism, and practical applicability rather than technical implementation.${aiEvaluationContext}`
+    }
     
     // Encourage concise output and include task context
     const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Target Year: ${task?.target_year ?? ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}${task?.image_url ? `\n- Task Image URL: ${task.image_url}` : ''}`
-    
-    // Add URL analysis context to the prompt
-    const urlAnalysisContext = mixedUrlAnalysis.shouldEvaluate 
-      ? `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}`
-      : `\n\nURL ANALYSIS:\n${mixedUrlAnalysis.contentAnalysis}\n\nEVALUATION GUIDANCE:\n${mixedUrlAnalysis.evaluationGuidance}`
     
     const concisePrompt = `${taskContext}${urlAnalysisContext}
 
 ${prompt}
 
-CONSTRAINTS:
-- Keep it concise (roughly 300-500 words)
-- Use clear headings and bullet points
-- Avoid verbose introductions; focus on findings and recommendations`
+PRODUCTION QUALITY CONSTRAINTS:
+- Provide comprehensive yet concise evaluation (400-600 words)
+- Use professional assessment language appropriate for industry standards
+- Focus on actionable insights and specific technical/business feedback
+- CRITICAL: NEVER exceed category maximums - all scores must be within bounds
+- Evaluate AI usage quality rather than penalizing appropriate AI tool usage
+- Apply fair, unbiased evaluation focused on merit and learning potential
+- Provide constructive feedback that helps students improve professionally`
 
     // Use structured output to prevent parsing issues
-    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | 'neutral' | null }
+    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | null }
     try {
       parsed = await generateStructuredReview(model, concisePrompt)
     } catch (structuredError) {
@@ -449,7 +574,7 @@ CONSTRAINTS:
     
     if (typeof parsed.score === 'number' && typeof parsed.review === 'string') {
       // Add AI recommendation banner and trim review to a safe maximum length for storage/display
-      const recommendation = parsed.recommendation ?? getAiRecommendation(parsed.score) ?? 'neutral'
+      const recommendation = parsed.recommendation ?? getAiRecommendation(parsed.score) ?? 'reject'
       const banner = recommendation ? `> AI Recommendation: ${recommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n` : ''
       const withBanner = banner + parsed.review
       const MAX_REVIEW_CHARS = 4000
@@ -641,7 +766,7 @@ async function retryAIReview(submissionId: number, prompt: string, supabase: Awa
     const model = getGeminiModel('gemini-2.0-flash')
     
     // Use structured output to prevent parsing issues
-    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | 'neutral' | null }
+    let parsed: { score: number; review: string; recommendation?: 'shortlist' | 'reject' | null }
     try {
       parsed = await generateStructuredReview(model, prompt)
     } catch (structuredError) {
@@ -668,11 +793,11 @@ async function retryAIReview(submissionId: number, prompt: string, supabase: Awa
     
     if (parsed.score !== undefined && parsed.review) {
           const fallback = getAiRecommendation(parsed.score)
-    const recommendation: 'shortlist' | 'reject' | 'neutral' = (parsed.recommendation ?? (fallback ?? 'neutral')) as 'shortlist' | 'reject' | 'neutral'
+    const recommendation: 'shortlist' | 'reject' = (parsed.recommendation ?? (fallback ?? 'reject')) as 'shortlist' | 'reject'
 
     // Ensure recommendation is one of the valid values
-    const validRecommendation: 'shortlist' | 'reject' | 'neutral' = recommendation === 'shortlist' || recommendation === 'reject' ? recommendation : 'neutral'
-      const banner = validRecommendation !== 'neutral' ? `> AI Recommendation: ${validRecommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n` : ''
+    const validRecommendation: 'shortlist' | 'reject' = recommendation === 'shortlist' || recommendation === 'reject' ? recommendation : 'reject'
+      const banner = `> AI Recommendation: ${validRecommendation === 'shortlist' ? 'Accept' : 'Reject'}\n\n`
       const withBanner = banner + parsed.review
       const MAX_REVIEW_CHARS = 4000
       const trimmedReview = withBanner.length > MAX_REVIEW_CHARS ? withBanner.slice(0, MAX_REVIEW_CHARS) + '\n\n…(trimmed)' : withBanner
