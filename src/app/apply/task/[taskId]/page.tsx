@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Calendar, Clock, CheckCircle, AlertCircle, Edit, ArrowLeft, FileText, Target, Users, ExternalLink, RefreshCw } from 'lucide-react'
+import { Calendar, CheckCircle, AlertCircle, Edit, ArrowLeft, FileText, Target, Users, ExternalLink, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
@@ -194,6 +194,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const deadlineDate = task?.deadline ? normalizeDeadlineToEndOfDay(task.deadline) : null
   const isDeadlinePassed = deadlineDate ? deadlineDate < new Date() : false
 
+  // Only keep "Due in x days" logic, remove duration logic
   const getRelativeDeadline = () => {
     if (!deadlineDate) return null
     const now = new Date()
@@ -248,7 +249,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     if (isDeadlinePassed) {
       return (
         <Button disabled className="w-full" variant="outline">
-          <Clock className="h-4 w-4 mr-2" />
+          <Calendar className="h-4 w-4 mr-2" />
           Application Closed
         </Button>
       )
@@ -415,12 +416,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                         <span>Due {deadlineDate.toLocaleDateString()}</span>
                       </div>
                     )}
-                    {task.estimated_duration && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <span>{task.estimated_duration}</span>
-                      </div>
-                    )}
                     {deadlineDate && (
                       <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -564,16 +559,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                         </div>
                       )}
 
-                      {/* Duration */}
-                      {task.estimated_duration && (
+                      {/* Relative Deadline (Due in x days) */}
+                      {deadlineDate && (
                         <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
                           <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                              <Clock className="h-4 w-4 text-indigo-600" />
+                            <div className={`p-2 bg-indigo-100 rounded-lg`}>
+                              <Calendar className="h-4 w-4 text-indigo-600" />
                             </div>
-                            <span className="text-sm font-medium text-indigo-700 uppercase tracking-wide">Duration</span>
+                            <span className="text-sm font-medium text-indigo-700 uppercase tracking-wide">Time Left</span>
                           </div>
-                          <p className="text-lg font-semibold text-gray-900">{task.estimated_duration}</p>
+                          <p className="text-lg font-semibold text-gray-900">{getRelativeDeadline()}</p>
                         </div>
                       )}
 
