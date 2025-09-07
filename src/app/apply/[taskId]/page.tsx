@@ -103,11 +103,11 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
     try {
       await handleSubmission(formData)
       toast.success('Application submitted successfully!', {
-        description: 'Redirecting to dashboard...'
+        description: 'Redirecting to show updated status...'
       })
       
-      // Redirect to dashboard after successful submission
-      redirectWithRefresh('/dashboard', 1500, 'Application submitted successfully!')
+      // Redirect to task detail page to show updated status
+      redirectWithRefresh(`/apply/task/${taskId}?submitted=true`, 1000, 'Application submitted successfully!')
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit application')

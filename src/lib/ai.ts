@@ -44,7 +44,8 @@ You are an expert, unbiased, and constructive reviewer for the Microsoft Student
 1.  **Content-First Evaluation:** Your primary focus is the substance of the work provided in legitimate URLs. Do not penalize a submission for including some invalid or placeholder URLs if at least one URL contains genuine work.
 2.  **Flexible URL Handling:** Evaluate the submission based on the content found in working, legitimate URLs. Ignore gibberish URLs (e.g., 'asdfghjkl.com') or placeholder domains if other valid links are present.
 3.  **Zero-Score Condition:** Only assign a score of 0-100 if ALL provided URLs are invalid AND no other content (like a text description) demonstrates any effort.
-4.  **Tone:** Maintain a professional, encouraging, and constructive tone appropriate for students who are learning.
+4.  **CRITICAL TASK COMPLIANCE:** If a submission does not address the specific task requirements (e.g., submitting a portfolio when asked to clone a website), assign 0 points for the task compliance category, regardless of technical quality.
+5.  **Tone:** Maintain a professional, encouraging, and constructive tone appropriate for students who are learning.
 </rules>
 
 <output_format>
@@ -173,6 +174,7 @@ export class PromptFactory {
 You are reviewing a technical task from a FIRST-YEAR student. Be mindful that they are beginners.
 - **Priority:** Focus on fundamental understanding, effort, and learning potential.
 - **Frameworks:** Do not penalize for the absence of frameworks (like React, etc.). Reward well-structured vanilla solutions.
+- **CRITICAL TASK COMPLIANCE RULE:** If the submission does not address the specific task requirements (e.g., submitting a portfolio when asked to clone a website, or submitting a calculator when asked to build a game), assign 0 points for Fundamentals & Logic. Only give points if the submission actually attempts to solve the specified problem.
 - **Originality:** Start originality at 100 and only deduct if there is clear evidence of plagiarism without understanding.
 </task>
 
@@ -184,7 +186,7 @@ Provide a score from 0-1000 and a concise markdown review using this exact table
 ## Score Breakdown
 | Area | Points | Justification |
 | --- | --- | --- |
-| Fundamentals & Logic | xx/300 | Correctness of approach, problem understanding. |
+| Fundamentals & Logic | xx/300 | Correctness of approach, problem understanding. 0 points if completely irrelevant (e.g., portfolio instead of website clone). |
 | Functionality | xx/250 | Whether the submission meets core requirements. |
 | Code Quality | xx/150 | Readability, structure, and organization. |
 | Learning & Reflection | xx/200 | Evidence of learning in README, comments, etc. |
@@ -193,6 +195,16 @@ Provide a score from 0-1000 and a concise markdown review using this exact table
 - 3-5 positive points.
 ## Areas for Growth
 - 3-5 constructive improvement areas.
+
+**IMPORTANT SCORING RULES:**
+- Each category score MUST NOT exceed its maximum (e.g., Fundamentals & Logic cannot exceed 300 points)
+- The total score should be the sum of all category scores
+- If a category exceeds its maximum, the review will be rejected
+- **TASK COMPLIANCE EXAMPLES:**
+  - 0 points: Portfolio submitted when asked to clone a website
+  - 0 points: Calculator submitted when asked to build a game
+  - 0 points: Any submission that doesn't address the specific task requirements
+  - 1-300 points: Only if the submission actually attempts to solve the specified problem
 ${this.getTaskSpecificGuidelines(taskType, 'first_year')}
 </evaluation_criteria>
 
@@ -205,7 +217,8 @@ ${codeBundle}
 <task>
 You are reviewing a technical task from a SECOND-YEAR student. Expect a higher level of proficiency.
 - **Priority:** Focus on task compliance, code architecture, and technical best practices.
-- **Requirements:** The submission must correctly solve the assigned problem. A non-functional or irrelevant submission should be scored very low.
+- **Requirements:** The submission must correctly solve the assigned problem. 
+- **CRITICAL TASK COMPLIANCE RULE:** If the submission does not address the specific task requirements (e.g., submitting a portfolio when asked to clone a website, or submitting a calculator when asked to build a game), assign 0 points for Task Compliance. Only give points for Task Compliance if the submission actually attempts to solve the specified problem.
 - **Tooling:** Expect appropriate use of tools, frameworks, and patterns for the task.
 </task>
 
@@ -217,7 +230,7 @@ Provide a score from 0-1000 and a concise markdown review using this exact table
 ## Score Breakdown
 | Area | Points | Justification |
 | --- | --- | --- |
-| Task Compliance | xx/300 | Does it solve the specified problem? |
+| Task Compliance | xx/300 | Does it solve the specified problem? 0 points if completely irrelevant (e.g., portfolio instead of website clone). |
 | Code & Architecture | xx/250 | Structure, maintainability, design patterns. |
 | Functionality & Correctness | xx/200 | Works as expected, handles basic edge cases. |
 | Technical Implementation | xx/150 | Appropriate use of tools and best practices. |
@@ -228,6 +241,16 @@ Provide a score from 0-1000 and a concise markdown review using this exact table
 - 3-5 major problems needing attention.
 ## Recommendations
 - 4-6 concrete next steps to improve.
+
+**IMPORTANT SCORING RULES:**
+- Each category score MUST NOT exceed its maximum (e.g., Technical Implementation cannot exceed 150 points)
+- The total score should be the sum of all category scores
+- If a category exceeds its maximum, the review will be rejected
+- **TASK COMPLIANCE EXAMPLES:**
+  - 0 points: Portfolio submitted when asked to clone a website
+  - 0 points: Calculator submitted when asked to build a game
+  - 0 points: Any submission that doesn't address the specific task requirements
+  - 1-300 points: Only if the submission actually attempts to solve the specified problem
 ${this.getTaskSpecificGuidelines(taskType, 'second_year')}
 </evaluation_criteria>
 
@@ -261,6 +284,11 @@ Provide a score from 0-1000 and a concise markdown review using this exact table
 - 3-5 key positive aspects.
 ## Areas for Improvement
 - 3-5 actionable recommendations.
+
+**IMPORTANT SCORING RULES:**
+- Each category score MUST NOT exceed its maximum (e.g., Feasibility & Strategy cannot exceed 400 points)
+- The total score should be the sum of all category scores
+- If a category exceeds its maximum, the review will be rejected
 </evaluation_criteria>
 
 <submission_content>
@@ -747,6 +775,32 @@ export const PROMPTS = {
   corporate: (textContent: string) => PromptFactory.create('corporate', { textContent })
 }
 
+/**
+ * Validates that individual category scores don't exceed their maximum values
+ */
+function validateCategoryScores(reviewText: string): { isValid: boolean; errors: string[] } {
+  const errors: string[] = []
+  
+  // Extract score patterns from the review text
+  // Look for patterns like "230/150" or "xx/150"
+  const scorePattern = /(\d+)\/(\d+)/g
+  let match
+  
+  while ((match = scorePattern.exec(reviewText)) !== null) {
+    const actualScore = parseInt(match[1])
+    const maxScore = parseInt(match[2])
+    
+    if (actualScore > maxScore) {
+      errors.push(`Score ${actualScore} exceeds maximum ${maxScore}`)
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
 export async function parseGeminiJsonResponse(raw: string): Promise<ReviewResult> {
   try {
     // Clean the response text
@@ -782,6 +836,12 @@ export async function parseGeminiJsonResponse(raw: string): Promise<ReviewResult
     
     if (parsed.review.trim().length === 0) {
       throw new Error('Review text is empty')
+    }
+    
+    // Validate individual category scores in the review text
+    const categoryScoreValidation = validateCategoryScores(parsed.review)
+    if (!categoryScoreValidation.isValid) {
+      throw new Error(`Invalid category scores: ${categoryScoreValidation.errors.join(', ')}`)
     }
     
     return parsed

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Calendar, Clock, CheckCircle, AlertCircle, Edit, ArrowLeft, FileText, Target, Users, ExternalLink } from 'lucide-react'
+import { Calendar, Clock, CheckCircle, AlertCircle, Edit, ArrowLeft, FileText, Target, Users, ExternalLink, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
@@ -43,6 +43,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [showZoom, setShowZoom] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     const loadTask = async () => {
@@ -78,6 +79,112 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     loadTask()
     fetchSubmissionStatus()
   }, [taskId])
+
+  // Refresh submission status when page becomes visible (e.g., when navigating back after submission)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && taskId) {
+        // Refresh submission status when page becomes visible
+        const fetchSubmissionStatus = async () => {
+          try {
+            const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+            if (response.ok) {
+              const status = await response.json()
+              setSubmissionStatus(status)
+            }
+          } catch (error) {
+            console.error('Error refreshing submission status:', error)
+          }
+        }
+        fetchSubmissionStatus()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Also refresh when the page regains focus
+    const handleFocus = () => {
+      if (taskId) {
+        const fetchSubmissionStatus = async () => {
+          try {
+            const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+            if (response.ok) {
+              const status = await response.json()
+              setSubmissionStatus(status)
+            }
+          } catch (error) {
+            console.error('Error refreshing submission status:', error)
+          }
+        }
+        fetchSubmissionStatus()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [taskId])
+
+  // Check for URL parameters that might indicate a recent submission
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const submitted = urlParams.get('submitted')
+    const refresh = urlParams.get('refresh')
+    
+    if (submitted === 'true' || refresh === 'true') {
+      // Refresh submission status immediately if coming from a submission
+      const fetchSubmissionStatus = async () => {
+        try {
+          const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+          if (response.ok) {
+            const status = await response.json()
+            setSubmissionStatus(status)
+          }
+        } catch (error) {
+          console.error('Error refreshing submission status:', error)
+        }
+      }
+      fetchSubmissionStatus()
+      
+      // Clean up URL parameters
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('submitted')
+      newUrl.searchParams.delete('refresh')
+      window.history.replaceState({}, '', newUrl.toString())
+      
+      // If this was a submission, show success message and redirect to dashboard after delay
+      if (submitted === 'true') {
+        toast.success('Application submitted successfully!', {
+          description: 'Redirecting to dashboard in 3 seconds...'
+        })
+        
+        // Redirect to dashboard after showing the updated status
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 3000)
+      }
+    }
+  }, [taskId])
+
+  const refreshSubmissionStatus = async () => {
+    setRefreshing(true)
+    try {
+      const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+      if (response.ok) {
+        const status = await response.json()
+        setSubmissionStatus(status)
+        toast.success('Status updated')
+      }
+    } catch (error) {
+      console.error('Error refreshing submission status:', error)
+      toast.error('Failed to refresh status')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   function normalizeDeadlineToEndOfDay(dateLike: string): Date {
     const base = new Date(dateLike)
@@ -118,6 +225,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
               <Edit className="h-4 w-4 mr-2" />
               Edit Your Application
             </Link>
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={refreshSubmissionStatus}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh Status'}
           </Button>
           {submissionStatus.canEdit && (
             <p className="text-xs text-gray-600 text-center">
@@ -490,14 +607,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
               </Link>
             </Button>
             
-            {!submissionStatus?.hasSubmitted && !isDeadlinePassed && (
-              <Button asChild className="flex-1 sm:flex-none sm:w-56 h-12 text-base">
-                <Link href={`/apply/${taskId}`}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Submit Task
-                </Link>
-              </Button>
-            )}
+            <div className="flex-1 sm:flex-none sm:w-56">
+              {getActionButton()}
+            </div>
           </div>
         </div>
       </div>
