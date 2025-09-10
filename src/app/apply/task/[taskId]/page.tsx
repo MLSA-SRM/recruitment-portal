@@ -147,7 +147,21 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           console.error('Error refreshing submission status:', error)
         }
       }
+      
+      // Try multiple times with increasing delays to handle race conditions
       fetchSubmissionStatus()
+      setTimeout(() => {
+        fetch(`/api/submission-status?taskId=${taskId}&retry=true&forceRefresh=true`)
+          .then(response => response.ok ? response.json() : null)
+          .then(status => status && setSubmissionStatus(status))
+          .catch(console.error)
+      }, 500)
+      setTimeout(() => {
+        fetch(`/api/submission-status?taskId=${taskId}&retry=true&forceRefresh=true`)
+          .then(response => response.ok ? response.json() : null)
+          .then(status => status && setSubmissionStatus(status))
+          .catch(console.error)
+      }, 1500)
       
       // Clean up URL parameters
       const newUrl = new URL(window.location.href)
@@ -172,7 +186,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const refreshSubmissionStatus = async () => {
     setRefreshing(true)
     try {
-      const response = await fetch(`/api/submission-status?taskId=${taskId}`)
+      const response = await fetch(`/api/submission-status?taskId=${taskId}&forceRefresh=true`)
       if (response.ok) {
         const status = await response.json()
         setSubmissionStatus(status)

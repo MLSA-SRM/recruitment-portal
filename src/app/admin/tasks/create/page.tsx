@@ -17,6 +17,7 @@ import { type SubmissionField } from '@/lib/types'
 import { toast } from 'sonner'
 import { createSupabaseClient } from '@/lib/supabase-client'
 import NextImage from 'next/image'
+import { getMinDateForInput } from '@/lib/date-utils'
 
 export default function CreateTaskPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -74,15 +75,11 @@ export default function CreateTaskPage() {
       
       // Auto-calculate estimated duration when deadline changes
       if (field === 'deadline') {
-        // For create form, we can safely convert date-only to end-of-day
-        // since this is a new task being created
-        if (value && !value.includes('T')) {
-          const dateOnly = value
-          const endOfDay = `${dateOnly}T23:59`
+        if (value) {
+          // Always set time to 23:59 (end of day) for date-only input
+          const endOfDay = `${value}T23:59`
           newData.deadline = endOfDay
           newData.estimated_duration = calculateEstimatedDuration(endOfDay)
-        } else {
-          newData.estimated_duration = calculateEstimatedDuration(value)
         }
       }
       
@@ -571,12 +568,13 @@ export default function CreateTaskPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Deadline *</label>
                 <Input 
-                  type="datetime-local"
-                  value={formData.deadline}
+                  type="date"
+                  value={formData.deadline ? formData.deadline.split('T')[0] : ''}
                   onChange={(e) => handleInputChange('deadline', e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={getMinDateForInput()}
                   className={errors.deadline ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                <p className="text-xs text-gray-500">Time will be automatically set to 11:59 PM (End of Day)</p>
                 {errors.deadline && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />

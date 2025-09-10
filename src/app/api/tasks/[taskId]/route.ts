@@ -10,7 +10,17 @@ const updateTaskSchema = z.object({
   domain: z.string().min(1),
   subdomain: z.string().min(1),
   target_year: z.coerce.number().int().positive(),
-  deadline: z.string().min(1),
+  deadline: z.string().min(1).transform((val) => {
+    // Always ensure time is set to 23:59 (end of day) for consistency
+    if (val && !val.includes('T')) {
+      // Date-only input: set to end of day
+      return `${val}T23:59:59.999Z`
+    } else if (val && val.includes('T') && !val.includes('Z')) {
+      // DateTime input without timezone: add UTC timezone
+      return `${val}Z`
+    }
+    return val
+  }),
   estimated_duration: z.string().optional().default(''),
   requirements: z.string().optional().default(''),
   deliverables: z.string().optional().default(''),

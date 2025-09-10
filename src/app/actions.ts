@@ -748,6 +748,20 @@ export async function handleSubmission(formData: FormData) {
 
   console.log('Submission created with ID:', submission.id)
 
+  // Aggressive cache invalidation for immediate UI updates
+  const { cache } = await import('@/lib/cache')
+  const { revalidatePath } = await import('next/cache')
+  
+  // Invalidate user submissions cache
+  cache.invalidatePattern(`user_submissions:${userId}`)
+  cache.invalidatePattern('admin_submissions:')
+  cache.invalidatePattern('analytics:')
+  
+  // Revalidate relevant pages
+  revalidatePath('/dashboard')
+  revalidatePath('/admin/dashboard')
+  revalidatePath(`/apply/task/${taskId}`)
+
   ;(async () => {
     await aiRateLimiter.execute(async () => {
       // Create a fresh supabase instance for the background process
@@ -756,7 +770,7 @@ export async function handleSubmission(formData: FormData) {
     })
   })()
 
-  return { ok: true }
+  return { ok: true, submissionId: submission.id }
 }
 
 async function retryAIReview(submissionId: number, prompt: string, supabase: Awaited<ReturnType<typeof createSupabaseServer>>) {
@@ -827,7 +841,12 @@ export async function exportShortlistedCSV(): Promise<string> {
   const supabase = await createSupabaseServer()
   const { data } = await supabase
     .from('submissions')
-    .select('ai_score, status, profiles(name, ra_number, phone_number, department, branch, year, domain, subdomain), tasks(domain, subdomain)')
+    .select(`
+      ai_score, 
+      status, 
+      profiles!submissions_applicant_id_fkey(name, ra_number, phone_number, department, branch, year, domain, subdomain), 
+      tasks!submissions_task_id_fkey(domain, subdomain)
+    `)
     .eq('status', 'shortlisted')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -857,9 +876,13 @@ const createTaskSchema = z.object({
   subdomain: z.string().min(1),
   target_year: z.coerce.number().int().positive(),
   deadline: z.string().min(1).transform((val) => {
-    // If it's a date-only input, set time to 23:59 (end of day)
+    // Always ensure time is set to 23:59 (end of day) for consistency
     if (val && !val.includes('T')) {
-      return `${val}T23:59`
+      // Date-only input: set to end of day
+      return `${val}T23:59:59.999Z`
+    } else if (val && val.includes('T') && !val.includes('Z')) {
+      // DateTime input without timezone: add UTC timezone
+      return `${val}Z`
     }
     return val
   }),
@@ -1099,6 +1122,21 @@ export async function updateSubmission(formData: FormData) {
     .eq('id', submissionId)
 
   if (error) throw error
+
+  // Aggressive cache invalidation for immediate UI updates
+  const { cache, CacheKeys } = await import('@/lib/cache')
+  const { revalidatePath } = await import('next/cache')
+  
+  // Invalidate specific submission cache
+  cache.delete(CacheKeys.submission(submissionId))
+  cache.invalidatePattern(`user_submissions:${userId}`)
+  cache.invalidatePattern('admin_submissions:')
+  cache.invalidatePattern('analytics:')
+  
+  // Revalidate relevant pages
+  revalidatePath('/dashboard')
+  revalidatePath('/admin/dashboard')
+  revalidatePath(`/dashboard/edit/${submissionId}`)
 
   // Trigger AI review for the updated submission
   console.log('Submission updated, triggering AI review for submission ID:', submissionId)
@@ -1360,6 +1398,76 @@ export async function triggerAIReviewForSubmission(submissionId: number) {
     }
   }, 0)
 
+  return { ok: true }
+}
+
+export async function deleteSubmission(submissionId: number) {
+  const supabase = await createSupabaseServer()
+  const userId = await getCurrentUserId()
+  if (!userId) throw new Error('Not authenticated')
+
+  // Check if user is admin
+  const isAdmin = await isCurrentUserAdmin()
+  if (!isAdmin) {
+    throw new Error('Unauthorized: Admin access required')
+  }
+
+  // Get submission details for logging
+  const { data: submission, error: fetchError } = await supabase
+    .from('submissions')
+    .select(`
+      id, 
+      applicant_id, 
+      task_id,
+      profiles!submissions_applicant_id_fkey(name, ra_number),
+      tasks!submissions_task_id_fkey(title)
+    `)
+    .eq('id', submissionId)
+    .single()
+
+  if (fetchError || !submission) {
+    throw new Error('Submission not found')
+  }
+
+  // Handle the joined data types properly
+  const profile = Array.isArray(submission.profiles) ? submission.profiles[0] : submission.profiles
+  const task = Array.isArray(submission.tasks) ? submission.tasks[0] : submission.tasks
+
+  console.log('Admin deleting submission:', {
+    submissionId,
+    applicantName: profile?.name,
+    applicantRA: profile?.ra_number,
+    taskTitle: task?.title
+  })
+
+  // Delete the submission using admin function
+  const { data: deleteResult, error: deleteError } = await supabase
+    .rpc('delete_submission_admin', { submission_id: submissionId })
+
+  if (deleteError) {
+    console.error('Error deleting submission:', deleteError)
+    throw new Error('Failed to delete submission')
+  }
+
+  if (!deleteResult?.success) {
+    console.error('Delete function returned failure:', deleteResult)
+    throw new Error('Failed to delete submission')
+  }
+
+  // Aggressive cache invalidation
+  const { cache, CacheKeys } = await import('@/lib/cache')
+  
+  // Invalidate all possible cache entries
+  cache.delete(CacheKeys.submission(submissionId))
+  cache.invalidatePattern('admin_submissions:')
+  cache.invalidatePattern(`user_submissions:${submission.applicant_id}`)
+  cache.invalidatePattern('submission_fields:')
+  cache.invalidatePattern('analytics:')
+  
+  // Also clear the entire cache to be safe
+  cache.clear()
+
+  console.log('Submission deleted successfully:', submissionId)
   return { ok: true }
 }
 

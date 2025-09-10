@@ -93,7 +93,9 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
     fetchTaskAndStatus()
   }, [taskId])
 
-  const handleFormSubmit = async (formData: FormData) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    
     if (!submissionStatus?.canSubmit) {
       toast.error('You cannot submit to this task')
       return
@@ -101,13 +103,24 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
 
     setIsSubmitting(true)
     try {
-      await handleSubmission(formData)
+      const formData = new FormData(e.currentTarget)
+      const result = await handleSubmission(formData)
+      
+      // Immediately update local state to show submission was successful
+      setSubmissionStatus(prev => prev ? {
+        ...prev,
+        hasSubmitted: true,
+        canSubmit: false,
+        canEdit: true,
+        existingSubmissionId: result.submissionId
+      } : null)
+      
       toast.success('Application submitted successfully!', {
-        description: 'Redirecting to show updated status...'
+        description: 'Redirecting to dashboard...'
       })
       
-      // Redirect to task detail page to show updated status
-      redirectWithRefresh(`/apply/task/${taskId}?submitted=true`, 1000, 'Application submitted successfully!')
+      // Redirect to dashboard after successful submission
+      redirectWithRefresh('/dashboard', 1000, 'Application submitted successfully!')
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit application')
@@ -333,7 +346,7 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={handleFormSubmit} className="space-y-6">
+            <form onSubmit={handleFormSubmit} className="space-y-6">
               <input type="hidden" name="taskId" defaultValue={task.id} />
               
               {/* Custom Submission Fields */}

@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/actions'
+import { updateSubmissionStatus, triggerAIReviewForSubmission, deleteSubmission } from '@/app/actions'
 import { revalidatePath } from 'next/cache'
 import { AdminLayout } from '@/components/admin-layout'
+import { PaginationControls } from '@/components/pagination-controls'
 import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
 import { 
   Users, 
@@ -20,7 +22,8 @@ import {
   BarChart3,
   Plus,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react'
 
 type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string; minScore?: string; maxScore?: string; sort?: string; page?: string; limit?: string }
@@ -45,7 +48,6 @@ type SubmissionWithJoins = {
 async function getSubmissions(filters: Filters): Promise<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number }> {
   const page = Number(filters.page) || 1
   const limit = Number(filters.limit) || 50 // Default to 50 items per page
-  const offset = (page - 1) * limit
 
   // Create cache key from filters
   const cacheKey = CacheKeys.adminSubmissions(JSON.stringify({ ...filters, page, limit }))
@@ -58,12 +60,21 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
 
   const supabase = await createSupabaseServer()
 
-  // Build query with filters
+  // Build query with filters - fetch ALL data first for consistent filtering
   let query = supabase
     .from('submissions')
-    .select('id, submission_url, status, ai_score, ai_recommendation, profiles(name, ra_number, year), tasks(domain, subdomain)', { count: 'exact' })
+    .select(`
+      id, 
+      submission_url, 
+      status, 
+      ai_score, 
+      ai_recommendation, 
+      created_at, 
+      profiles!submissions_applicant_id_fkey(name, ra_number, year), 
+      tasks!submissions_task_id_fkey(domain, subdomain)
+    `, { count: 'exact' })
 
-  // Apply filters at database level for better performance
+  // Apply database-level filters that are efficient
   if (filters.status) {
     query = query.eq('status', filters.status)
   }
@@ -74,18 +85,19 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
     query = query.lte('ai_score', Number(filters.maxScore))
   }
 
-  // Apply sorting
+  // Apply consistent sorting with secondary sort for ties
   if (filters.sort === 'score_desc') {
     query = query.order('ai_score', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false }) // Secondary sort for ties
   } else if (filters.sort === 'score_asc') {
     query = query.order('ai_score', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false }) // Secondary sort for ties
   } else {
     query = query.order('created_at', { ascending: false })
+      .order('id', { ascending: false }) // Secondary sort for ties
   }
 
-  // Apply pagination
-  query = query.range(offset, offset + limit - 1)
-
+  // Get ALL data first (no pagination yet)
   const { data, count, error } = await query
 
   if (error) {
@@ -113,10 +125,13 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
     rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
   }
 
-  const total = count || 0
+  // Now apply pagination to the filtered results
+  const total = rows.length
   const totalPages = Math.ceil(total / limit)
+  const offset = (page - 1) * limit
+  const paginatedRows = rows.slice(offset, offset + limit)
 
-  const result = { submissions: rows, total, page, totalPages }
+  const result = { submissions: paginatedRows, total, page, totalPages }
   
   // Cache the result for 2 minutes
   cache.set(cacheKey, result, CacheTTL.SHORT * 2)
@@ -539,6 +554,62 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                           Reject
                         </Button>
                       </form>
+                      
+                      {/* Delete Submission Button */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Submission</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to delete this submission? This action cannot be undone.
+                              <br />
+                              <br />
+                              <strong>Applicant:</strong> {s.profiles?.name || 'Unknown'} ({s.profiles?.ra_number || 'N/A'})
+                              <br />
+                              <strong>Task:</strong> {s.tasks?.domain || 'Unknown'} - {s.tasks?.subdomain || 'N/A'}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogTrigger asChild>
+                              <Button variant="outline">Cancel</Button>
+                            </DialogTrigger>
+                            <form action={async () => { 
+                              'use server'
+                              try {
+                                await deleteSubmission(s.id as number)
+                                // Additional cache invalidation
+                                cache.invalidatePattern('admin_submissions:')
+                                cache.invalidatePattern('user_submissions:')
+                                cache.invalidatePattern('analytics:')
+                                cache.clear()
+                                revalidatePath('/admin/dashboard')
+                                revalidatePath('/dashboard')
+                                revalidatePath('/apply')
+                              } catch (error) {
+                                console.error('Failed to delete submission:', error)
+                              }
+                            }}>
+                              <Button 
+                                type="submit" 
+                                variant="destructive"
+                                className="flex items-center gap-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete Submission
+                              </Button>
+                            </form>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -549,28 +620,13 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       </Card>
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 px-4">
-          <div className="text-sm text-gray-700">
-            Showing {((page - 1) * 50) + 1} to {Math.min(page * 50, total)} of {total} results
-          </div>
-          <div className="flex items-center space-x-2">
-            {page > 1 && (
-              <Link href={`/admin/dashboard?${new URLSearchParams({ ...resolvedSearchParams, page: String(page - 1) }).toString()}`}>
-                <Button variant="outline" size="sm">Previous</Button>
-              </Link>
-            )}
-            <span className="text-sm text-gray-700">
-              Page {page} of {totalPages}
-            </span>
-            {page < totalPages && (
-              <Link href={`/admin/dashboard?${new URLSearchParams({ ...resolvedSearchParams, page: String(page + 1) }).toString()}`}>
-                <Button variant="outline" size="sm">Next</Button>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
+      <PaginationControls 
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        limit={Number(resolvedSearchParams.limit) || 50}
+        searchParams={resolvedSearchParams}
+      />
       </div>
     </AdminLayout>
   )

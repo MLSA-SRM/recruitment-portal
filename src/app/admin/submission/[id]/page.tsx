@@ -1,13 +1,17 @@
 import { createSupabaseServer } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { updateSubmissionStatus, triggerAIReviewForSubmission } from '@/app/actions'
+import { updateSubmissionStatus, triggerAIReviewForSubmission, deleteSubmission } from '@/app/actions'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { AdminLayout } from '@/components/admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award, RefreshCw } from 'lucide-react'
+import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award, RefreshCw, Trash2 } from 'lucide-react'
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+import { cache } from '@/lib/cache'
 
 type SubmissionFieldInfo = {
   value: unknown
@@ -167,6 +171,60 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
                   Reject
                 </Button>
               </form>
+              
+              {/* Delete Submission Button */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Submission</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this submission? This action cannot be undone.
+                      <br />
+                      <br />
+                      <strong>Applicant:</strong> {view?.profiles?.name || 'Unknown'} ({view?.profiles?.ra_number || 'N/A'})
+                      <br />
+                      <strong>Task:</strong> {view?.tasks?.title || 'Unknown'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogTrigger>
+                    <form action={async () => { 
+                      'use server'
+                      await deleteSubmission(Number(id))
+                      // Aggressive cache invalidation
+                      cache.invalidatePattern('admin_submissions:')
+                      cache.invalidatePattern('user_submissions:')
+                      cache.invalidatePattern('analytics:')
+                      cache.clear()
+                      revalidatePath('/admin/dashboard')
+                      revalidatePath('/dashboard')
+                      revalidatePath('/apply')
+                      redirect('/admin/dashboard')
+                    }}>
+                      <Button 
+                        type="submit" 
+                        variant="destructive"
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Submission
+                      </Button>
+                    </form>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>

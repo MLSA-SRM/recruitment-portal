@@ -6,6 +6,7 @@ import Link from 'next/link'
 import React from 'react'
 import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
+import { normalizeDeadlineToEndOfDay, formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()
@@ -108,18 +109,12 @@ export default async function DashboardPage() {
       ai_review,
       created_at,
       updated_at,
-      tasks(title, domain, subdomain, target_year, deadline)
+      tasks!submissions_task_id_fkey(title, domain, subdomain, target_year, deadline)
     `)
     .eq('applicant_id', user.id)
     .order('created_at', { ascending: false })
 
   const typedSubmissions = submissions as SubmissionWithTask[]
-  const now = new Date()
-
-  function normalizeDeadlineToEndOfDay(dateLike: string): Date {
-    const base = new Date(dateLike)
-    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
-  }
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
@@ -141,8 +136,7 @@ export default async function DashboardPage() {
             // Normalize task relation (can be object or single-item array depending on PostgREST)
             const rawTask = submission.tasks as unknown
             const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; target_year?: number; deadline?: string }) | null)
-            const deadline = task?.deadline ? normalizeDeadlineToEndOfDay(task.deadline) : null
-            const deadlinePassed = deadline ? deadline < now : false
+            const deadlinePassed = task?.deadline ? isDeadlinePassed(task.deadline) : false
             const canEdit = submission.status === 'pending' && !deadlinePassed
             
             return (
@@ -238,7 +232,7 @@ export default async function DashboardPage() {
                           <div>
                             <div className="text-xs text-muted-foreground">Deadline</div>
                             <div className="text-sm font-medium text-foreground">
-                              {new Date(task.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                              {formatDateForDisplay(task.deadline)}
                               {deadlinePassed ? (
                                 <Badge variant="destructive" className="ml-2 text-xs">Passed</Badge>
                               ) : (
