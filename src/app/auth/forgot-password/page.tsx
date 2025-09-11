@@ -30,7 +30,23 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const baseUrl = env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
+      // Build a stable base URL for production
+      let baseUrl = env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+      const vercel = (typeof window === 'undefined') ? process.env.NEXT_PUBLIC_VERCEL_URL : ''
+      if (!baseUrl && vercel) {
+        baseUrl = vercel.startsWith('http') ? vercel : `https://${vercel}`
+      }
+      // Default to production domain if no env vars are set
+      if (!baseUrl || baseUrl.includes('localhost')) {
+        baseUrl = 'https://task.mlsasrm.in'
+      }
+      if (baseUrl && !baseUrl.startsWith('http')) {
+        baseUrl = `https://${baseUrl}`
+      }
+      if (baseUrl && baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1)
+      }
+      console.log('[forgot-password] using baseUrl for redirectTo', baseUrl)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${baseUrl}/auth/update-password`,
       })
