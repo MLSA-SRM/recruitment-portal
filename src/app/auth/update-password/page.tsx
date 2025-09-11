@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 //
 import { createBrowserClient } from '@supabase/ssr'
 import { env } from '@/env'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,7 +21,6 @@ export default function UpdatePasswordPage() {
     global: { fetch: (...args) => fetch(...args) },
   })
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,72 +28,30 @@ export default function UpdatePasswordPage() {
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
   // Session readiness is validated inline before update; no separate UI gating needed
 
-  // Handle recovery type when Supabase redirects after reset link
+  // Check for existing session (user should come here after OTP verification)
   useEffect(() => {
-    async function ensureRecoverySession() {
-      // Supabase sends recovery details in the URL hash, not query params
-      const hash = typeof window !== 'undefined' ? window.location.hash : ''
-      const params = new URLSearchParams(hash.replace(/^#/, ''))
-      const type = params.get('type') || searchParams.get('type')
-      const code = searchParams.get('code')
-
-      // Diagnostics
+    async function checkSession() {
       try {
-        console.log('[update-password] location', {
-          href: typeof window !== 'undefined' ? window.location.href : 'ssr',
-          hash,
-        })
-        console.log('[update-password] parsed params', {
-          type,
-          code,
-          has_access_token: Boolean(params.get('access_token')),
-          has_refresh_token: Boolean(params.get('refresh_token')),
-        })
-      } catch {}
-
-      // If tokens exist in hash, set the session explicitly (robust across routers)
-      const accessToken = params.get('access_token')
-      const refreshToken = params.get('refresh_token')
-
-      try {
-        // PKCE flow: if "code" exists, exchange it for a session
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-          console.log('[update-password] exchangeCodeForSession result', { hasSession: Boolean(data?.session), error })
-          if (error) {
-            setMessage(error.message)
-            setMessageType('error')
-          }
-        }
-
-        // Implicit flow: if tokens are present, set the session
-        if (type === 'recovery' && accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          })
-          console.log('[update-password] setSession result', { hasSession: Boolean(data?.session), error })
-          if (error) {
-            setMessage(error.message)
-            setMessageType('error')
-          }
-        }
-
-        // Verify session availability
-        const { data } = await supabase.auth.getSession()
-        console.log('[update-password] getSession check', { hasSession: Boolean(data.session) })
+        const { data, error } = await supabase.auth.getSession()
+        console.log('[update-password] session check', { hasSession: Boolean(data.session), error })
+        
         if (!data.session) {
-          setMessage('Recovery session not found. Please open the reset link from your email again.')
+          setMessage('No active session found. Please verify your email with the code sent to you.')
           setMessageType('error')
+          // Redirect to forgot password page after a delay
+          setTimeout(() => {
+            router.replace('/auth/forgot-password')
+          }, 3000)
         }
-      } catch {
-        setMessage('An unexpected error occurred while preparing your session')
+      } catch (err) {
+        console.error('[update-password] session check error:', err)
+        setMessage('Unable to verify your session. Please try again.')
         setMessageType('error')
       }
     }
 
-    ensureRecoverySession()
-  }, [searchParams, supabase])
+    checkSession()
+  }, [supabase, router])
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault()

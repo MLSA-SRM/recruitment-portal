@@ -3,8 +3,27 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function AuthCodeErrorPage() {
+function AuthCodeErrorContent() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
+  const message = searchParams.get('message')
+  
+  const getErrorMessage = () => {
+    switch (error) {
+      case 'verification_failed':
+        return message || 'The password reset link could not be verified'
+      case 'missing_parameters':
+        return 'The password reset link is missing required information'
+      case 'invalid_type':
+        return 'This link is not valid for password reset'
+      default:
+        return 'There was an issue with your email confirmation link'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -32,21 +51,31 @@ export default function AuthCodeErrorPage() {
               Authentication Error
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              There was an issue with your email confirmation link. This could happen if:
+              {getErrorMessage()}
             </p>
-            <ul className="text-sm text-gray-600 text-left mb-6 space-y-2">
-              <li>• The link has expired</li>
-              <li>• The link has already been used</li>
-              <li>• The link is invalid or corrupted</li>
-            </ul>
+            {!error && (
+              <ul className="text-sm text-gray-600 text-left mb-6 space-y-2">
+                <li>• The link has expired</li>
+                <li>• The link has already been used</li>
+                <li>• The link is invalid or corrupted</li>
+              </ul>
+            )}
           </div>
 
           <div className="space-y-3">
-            <Button asChild className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium">
-              <Link href="/auth/signin">
-                Try Signing In
-              </Link>
-            </Button>
+            {error === 'verification_failed' || error === 'missing_parameters' ? (
+              <Button asChild className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium">
+                <Link href="/auth/forgot-password">
+                  Request New Password Reset
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium">
+                <Link href="/auth/signin">
+                  Try Signing In
+                </Link>
+              </Button>
+            )}
             
             <Button asChild variant="outline" className="w-full h-12">
               <Link href="/auth/signup">
@@ -63,5 +92,26 @@ export default function AuthCodeErrorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthCodeErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="animate-pulse">
+              <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+              <div className="h-6 bg-gray-200 rounded mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded mb-4"></div>
+              <div className="h-10 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthCodeErrorContent />
+    </Suspense>
   )
 }
