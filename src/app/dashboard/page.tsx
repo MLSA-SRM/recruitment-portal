@@ -6,7 +6,7 @@ import Link from 'next/link'
 import React from 'react'
 import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
-import { normalizeDeadlineToEndOfDay, formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
+import { formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()

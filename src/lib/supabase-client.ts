@@ -11,6 +11,8 @@ export function createSupabaseClient() {
       persistSession: true,
       // Detect session from URL (for OAuth callbacks)
       detectSessionInUrl: true,
+      // Use implicit flow to avoid PKCE code_verifier requirements for cross-device recovery links
+      flowType: 'implicit',
     },
     // Global configuration
     global: {

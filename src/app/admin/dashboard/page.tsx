@@ -98,7 +98,7 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
   }
 
   // Get ALL data first (no pagination yet)
-  const { data, count, error } = await query
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching submissions:', error)
