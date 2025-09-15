@@ -45,15 +45,22 @@ type SubmissionWithJoins = {
   } | null
 }
 
-async function getSubmissions(filters: Filters): Promise<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number }> {
-  const page = Number(filters.page) || 1
-  const limit = Number(filters.limit) || 50 // Default to 50 items per page
+type SubmissionAggregates = {
+  pending: number
+  shortlisted: number
+  rejected: number
+  averageScore: number
+}
+
+async function getSubmissions(filters: Filters): Promise<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number, aggregates: SubmissionAggregates }> {
+  const page = Math.max(1, Number(filters.page) || 1) // Ensure page is at least 1
+  const limit = Math.max(1, Math.min(200, Number(filters.limit) || 50)) // Ensure limit is between 1 and 200
 
   // Create cache key from filters
   const cacheKey = CacheKeys.adminSubmissions(JSON.stringify({ ...filters, page, limit }))
   
   // Try to get from cache first
-  const cached = cache.get<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number }>(cacheKey)
+  const cached = cache.get<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number, aggregates: SubmissionAggregates }>(cacheKey)
   if (cached) {
     return cached
   }
@@ -102,7 +109,7 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
 
   if (error) {
     console.error('Error fetching submissions:', error)
-    return { submissions: [], total: 0, page: 1, totalPages: 0 }
+    return { submissions: [], total: 0, page: 1, totalPages: 0, aggregates: { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0 } }
   }
 
   let rows = (data || []) as unknown as SubmissionWithJoins[]
@@ -125,13 +132,30 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
     rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
   }
 
+  // Compute aggregates on the full filtered result set (pre-pagination)
+  const aggregates: SubmissionAggregates = rows.reduce(
+    (acc, row) => {
+      if (row.status === 'pending') acc.pending += 1
+      if (row.status === 'shortlisted') acc.shortlisted += 1
+      if (row.status === 'rejected') acc.rejected += 1
+      if (typeof row.ai_score === 'number') {
+        acc.averageScore += row.ai_score
+      }
+      return acc
+    },
+    { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0 }
+  )
+  const scoreDenominator = rows.filter(r => typeof r.ai_score === 'number').length
+  aggregates.averageScore = scoreDenominator > 0 ? Math.round(aggregates.averageScore / scoreDenominator) : 0
+
   // Now apply pagination to the filtered results
   const total = rows.length
   const totalPages = Math.ceil(total / limit)
-  const offset = (page - 1) * limit
+  const validatedPage = Math.min(page, Math.max(1, totalPages)) // Ensure page doesn't exceed total pages
+  const offset = (validatedPage - 1) * limit
   const paginatedRows = rows.slice(offset, offset + limit)
 
-  const result = { submissions: paginatedRows, total, page, totalPages }
+  const result = { submissions: paginatedRows, total, page: validatedPage, totalPages, aggregates }
   
   // Cache the result for 2 minutes
   cache.set(cacheKey, result, CacheTTL.SHORT * 2)
@@ -142,7 +166,7 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<Filters> }) {
   const resolvedSearchParams = await searchParams
-  const { submissions, total, page, totalPages } = await getSubmissions(resolvedSearchParams as Filters)
+  const { submissions, total, page, totalPages, aggregates } = await getSubmissions(resolvedSearchParams as Filters)
   
   // Get analytics data
   const supabase = await createSupabaseServer()
@@ -150,9 +174,10 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const { data: totalTasks } = await supabase.from('tasks').select('*', { count: 'exact' })
   const { data: totalProfiles } = await supabase.from('profiles').select('*', { count: 'exact' })
   
-  const pendingCount = submissions.filter(s => s.status === 'pending').length
-  const shortlistedCount = submissions.filter(s => s.status === 'shortlisted').length
-  const rejectedCount = submissions.filter(s => s.status === 'rejected').length
+  // Use aggregates computed from the full filtered dataset (not paginated)
+  const pendingCount = aggregates.pending
+  const shortlistedCount = aggregates.shortlisted
+  const rejectedCount = aggregates.rejected
   
   function hrefWith(key: string, value?: string) {
     const params = new URLSearchParams()
@@ -352,8 +377,17 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 
       {/* Filters and Search */}
       <div className="flex items-center gap-3">
-        <form className="flex-1" action="/admin/dashboard" method="get">
+        <form className="flex-1" method="get">
           <Input name="q" defaultValue={resolvedSearchParams.q} placeholder="Search name, RA, domain, subdomain" />
+          {/* Preserve other search parameters */}
+          {resolvedSearchParams.year && <input type="hidden" name="year" value={resolvedSearchParams.year} />}
+          {resolvedSearchParams.domain && <input type="hidden" name="domain" value={resolvedSearchParams.domain} />}
+          {resolvedSearchParams.subdomain && <input type="hidden" name="subdomain" value={resolvedSearchParams.subdomain} />}
+          {resolvedSearchParams.status && <input type="hidden" name="status" value={resolvedSearchParams.status} />}
+          {resolvedSearchParams.minScore && <input type="hidden" name="minScore" value={resolvedSearchParams.minScore} />}
+          {resolvedSearchParams.maxScore && <input type="hidden" name="maxScore" value={resolvedSearchParams.maxScore} />}
+          {resolvedSearchParams.sort && <input type="hidden" name="sort" value={resolvedSearchParams.sort} />}
+          {resolvedSearchParams.limit && <input type="hidden" name="limit" value={resolvedSearchParams.limit} />}
         </form>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

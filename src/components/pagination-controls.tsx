@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -21,12 +21,13 @@ export function PaginationControls({
 }: PaginationControlsProps) {
   const router = useRouter()
   const currentSearchParams = useSearchParams()
+  const pathname = usePathname()
 
   const handlePageSizeChange = (newLimit: string) => {
     const params = new URLSearchParams(currentSearchParams.toString())
     params.set('limit', newLimit)
     params.set('page', '1') // Reset to first page when changing page size
-    router.push(`/admin/dashboard?${params.toString()}`)
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   if (totalPages <= 1) return null
@@ -54,7 +55,7 @@ export function PaginationControls({
       </div>
       <div className="flex items-center space-x-2">
         {page > 1 && (
-          <Link href={`/admin/dashboard?${new URLSearchParams({ ...searchParams, page: String(page - 1) }).toString()}`}>
+          <Link href={`${pathname}?${new URLSearchParams({ ...searchParams, page: String(page - 1) }).toString()}`}>
             <Button variant="outline" size="sm">Previous</Button>
           </Link>
         )}
@@ -70,7 +71,7 @@ export function PaginationControls({
             // Show first page if not visible
             if (startPage > 1) {
               pages.push(
-                <Link key={1} href={`/admin/dashboard?${new URLSearchParams({ ...searchParams, page: '1' }).toString()}`}>
+                <Link key={1} href={`${pathname}?${new URLSearchParams({ ...searchParams, page: '1' }).toString()}`}>
                   <Button variant={page === 1 ? "default" : "outline"} size="sm">1</Button>
                 </Link>
               )
@@ -82,7 +83,7 @@ export function PaginationControls({
             // Show visible pages
             for (let i = startPage; i <= endPage; i++) {
               pages.push(
-                <Link key={i} href={`/admin/dashboard?${new URLSearchParams({ ...searchParams, page: String(i) }).toString()}`}>
+                <Link key={i} href={`${pathname}?${new URLSearchParams({ ...searchParams, page: String(i) }).toString()}`}>
                   <Button variant={page === i ? "default" : "outline"} size="sm">{i}</Button>
                 </Link>
               )
@@ -94,7 +95,7 @@ export function PaginationControls({
                 pages.push(<span key="ellipsis2" className="text-gray-500">...</span>)
               }
               pages.push(
-                <Link key={totalPages} href={`/admin/dashboard?${new URLSearchParams({ ...searchParams, page: String(totalPages) }).toString()}`}>
+                <Link key={totalPages} href={`${pathname}?${new URLSearchParams({ ...searchParams, page: String(totalPages) }).toString()}`}>
                   <Button variant={page === totalPages ? "default" : "outline"} size="sm">{totalPages}</Button>
                 </Link>
               )
@@ -105,7 +106,7 @@ export function PaginationControls({
         </div>
         
         {page < totalPages && (
-          <Link href={`/admin/dashboard?${new URLSearchParams({ ...searchParams, page: String(page + 1) }).toString()}`}>
+          <Link href={`${pathname}?${new URLSearchParams({ ...searchParams, page: String(page + 1) }).toString()}`}>
             <Button variant="outline" size="sm">Next</Button>
           </Link>
         )}
