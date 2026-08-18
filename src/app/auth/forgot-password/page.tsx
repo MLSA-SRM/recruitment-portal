@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { isAllowedSignInEmail } from '@/lib/constants'
 
 type ResetStep = 'email' | 'otp' | 'password'
 
@@ -34,7 +35,7 @@ export default function ForgotPasswordPage() {
     resetMessages()
     setLoading(true)
 
-    if (!email.endsWith('@srmist.edu.in')) {
+    if (!isAllowedSignInEmail(email)) {
       setMessage('Only SRMIST email addresses (@srmist.edu.in) are allowed.')
       setMessageType('error')
       setLoading(false)

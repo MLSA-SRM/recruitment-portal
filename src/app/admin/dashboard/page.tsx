@@ -376,8 +376,8 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       </div>
 
       {/* Filters and Search */}
-      <div className="flex items-center gap-3">
-        <form className="flex-1" method="get">
+      <div className="flex flex-wrap items-center gap-3">
+        <form className="w-full sm:flex-1 sm:w-auto" method="get">
           <Input name="q" defaultValue={resolvedSearchParams.q} placeholder="Search name, RA, domain, subdomain" />
           {/* Preserve other search parameters */}
           {resolvedSearchParams.year && <input type="hidden" name="year" value={resolvedSearchParams.year} />}
@@ -476,7 +476,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         <Link href="/admin/export"><Button type="button">Export Shortlisted CSV</Button></Link>
       </div>
       <Card>
-        <CardContent className="px-6 py-0">
+        <CardContent className="px-6 py-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

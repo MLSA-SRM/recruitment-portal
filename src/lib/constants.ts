@@ -1,5 +1,12 @@
 export const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/BfZprjZU1R50RCtCEueR8N?s=qt&p=a&mlu=4'
 
+// Admin accounts that log in from outside the @srmist.edu.in domain
+const ADMIN_EMAIL_ALLOWLIST = ['mlsasrm14@gmail.com']
+
+export function isAllowedSignInEmail(email: string): boolean {
+  return email.endsWith('@srmist.edu.in') || ADMIN_EMAIL_ALLOWLIST.includes(email.toLowerCase())
+}
+
 export const DOMAIN_SUBDOMAINS = {
   Technical: [
     'Web Development: Frontend',

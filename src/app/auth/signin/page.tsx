@@ -13,7 +13,7 @@ import Image from 'next/image'
 import { useAuthRedirect } from '@/lib/use-refresh-handler'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { isRateLimitError, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit'
-import { WHATSAPP_GROUP_URL } from '@/lib/constants'
+import { WHATSAPP_GROUP_URL, isAllowedSignInEmail } from '@/lib/constants'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -35,7 +35,7 @@ export default function SignInPage() {
     setIsRateLimited(false)
 
     // Validate email domain
-    if (!email.endsWith('@srmist.edu.in')) {
+    if (!isAllowedSignInEmail(email)) {
       setMessage('Only SRMIST email addresses (@srmist.edu.in) are allowed for sign in.')
       setMessageType('error')
       setLoading(false)
