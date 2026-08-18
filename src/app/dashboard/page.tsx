@@ -7,6 +7,7 @@ import React from 'react'
 import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 import { formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
+import { WHATSAPP_GROUP_URL } from '@/lib/constants'
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()
@@ -290,6 +291,17 @@ export default async function DashboardPage() {
                   Browse Available Tasks
                 </Button>
               </Link>
+              <p className="text-sm text-muted-foreground">
+                Have questions?{' '}
+                <a
+                  href={WHATSAPP_GROUP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-700 hover:underline"
+                >
+                  Join our WhatsApp group
+                </a>
+              </p>
             </div>
           </CardContent>
         </Card>
