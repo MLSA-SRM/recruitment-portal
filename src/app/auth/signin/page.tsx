@@ -20,6 +20,9 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
   const supabase = createSupabaseClient()
   const { redirectAfterLogin } = useAuthRedirect()
 
@@ -27,6 +30,8 @@ export default function SignInPage() {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+    setNeedsConfirmation(false)
+    setResendMessage('')
 
     // Validate email domain
     if (!email.endsWith('@srmist.edu.in')) {
@@ -43,8 +48,14 @@ export default function SignInPage() {
       })
 
       if (error) {
-        setMessage(error.message)
-        setMessageType('error')
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          setMessage('Your email address hasn\'t been confirmed yet. Please check your inbox (and spam folder) for the confirmation link we sent when you signed up.')
+          setMessageType('error')
+          setNeedsConfirmation(true)
+        } else {
+          setMessage(error.message)
+          setMessageType('error')
+        }
       } else {
         setMessage('Successfully signed in! Redirecting...')
         setMessageType('success')
@@ -55,6 +66,23 @@ export default function SignInPage() {
       setMessageType('error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResendConfirmation() {
+    setResending(true)
+    setResendMessage('')
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email })
+      if (error) {
+        setResendMessage(error.message)
+      } else {
+        setResendMessage('Confirmation email resent. Please check your inbox (and spam folder).')
+      }
+    } catch {
+      setResendMessage('Failed to resend confirmation email. Please try again shortly.')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -154,6 +182,31 @@ export default function SignInPage() {
                     {message}
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Resend Confirmation Email */}
+              {needsConfirmation && (
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResendConfirmation}
+                    disabled={resending || !email}
+                  >
+                    {resending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Resending...
+                      </>
+                    ) : (
+                      'Resend confirmation email'
+                    )}
+                  </Button>
+                  {resendMessage && (
+                    <p className="text-sm text-gray-600 mt-2">{resendMessage}</p>
+                  )}
+                </div>
               )}
 
               {/* Forgot Password */}

@@ -126,14 +126,14 @@ export default function SignUpPage() {
         // Check if this is a new user by looking at identities array
         if (data.user.identities && data.user.identities.length > 0) {
           // New user was created successfully
-          setMessage('Account created successfully! Please proceed to login.')
+          setMessage('Account created successfully! We\'ve sent a confirmation link to your email — please check your inbox (and spam folder) and click the link before signing in.')
           setMessageType('success')
-          
+
           // Immediately sign out the user to prevent authentication
           await supabase.auth.signOut()
-          
+
           // Start countdown for redirect to login page
-          setRedirectCountdown(3)
+          setRedirectCountdown(6)
         } else {
           // Email already exists - no identities means existing user
           // Check if user exists in auth_check table as additional verification
@@ -149,14 +149,14 @@ export default function SignUpPage() {
             setMessageType('error')
           } else {
             // This is actually a new user, proceed with success
-            setMessage('Account created successfully! Please proceed to login.')
+            setMessage('Account created successfully! We\'ve sent a confirmation link to your email — please check your inbox (and spam folder) and click the link before signing in.')
             setMessageType('success')
-            
+
             // Immediately sign out the user to prevent authentication
             await supabase.auth.signOut()
-            
+
             // Start countdown for redirect to login page
-            setRedirectCountdown(3)
+            setRedirectCountdown(6)
           }
         }
       } else {
