@@ -12,6 +12,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useAuthRedirect } from '@/lib/use-refresh-handler'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { isRateLimitError, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit'
+import { WHATSAPP_GROUP_URL } from '@/lib/constants'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -21,8 +23,7 @@ export default function SignInPage() {
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
   const [needsConfirmation, setNeedsConfirmation] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [resendMessage, setResendMessage] = useState('')
+  const [isRateLimited, setIsRateLimited] = useState(false)
   const supabase = createSupabaseClient()
   const { redirectAfterLogin } = useAuthRedirect()
 
@@ -31,7 +32,7 @@ export default function SignInPage() {
     setLoading(true)
     setMessage('')
     setNeedsConfirmation(false)
-    setResendMessage('')
+    setIsRateLimited(false)
 
     // Validate email domain
     if (!email.endsWith('@srmist.edu.in')) {
@@ -48,8 +49,12 @@ export default function SignInPage() {
       })
 
       if (error) {
-        if (error.message.toLowerCase().includes('email not confirmed')) {
-          setMessage('Your email address hasn\'t been confirmed yet. Please check your inbox (and spam folder) for the confirmation link we sent when you signed up.')
+        if (isRateLimitError(error.message, error.status)) {
+          setMessage(RATE_LIMIT_MESSAGE)
+          setMessageType('error')
+          setIsRateLimited(true)
+        } else if (error.message.toLowerCase().includes('email not confirmed')) {
+          setMessage('Your email address hasn\'t been confirmed yet. Please enter the verification code we sent when you signed up.')
           setMessageType('error')
           setNeedsConfirmation(true)
         } else {
@@ -69,22 +74,6 @@ export default function SignInPage() {
     }
   }
 
-  async function handleResendConfirmation() {
-    setResending(true)
-    setResendMessage('')
-    try {
-      const { error } = await supabase.auth.resend({ type: 'signup', email })
-      if (error) {
-        setResendMessage(error.message)
-      } else {
-        setResendMessage('Confirmation email resent. Please check your inbox (and spam folder).')
-      }
-    } catch {
-      setResendMessage('Failed to resend confirmation email. Please try again shortly.')
-    } finally {
-      setResending(false)
-    }
-  }
 
 
 
@@ -184,28 +173,28 @@ export default function SignInPage() {
                 </Alert>
               )}
 
-              {/* Resend Confirmation Email */}
+              {/* Verify Email */}
               {needsConfirmation && (
                 <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResendConfirmation}
-                    disabled={resending || !email}
+                  <Link href={`/auth/verify-signup-otp?email=${encodeURIComponent(email)}`}>
+                    <Button type="button" variant="outline" size="sm">
+                      Enter verification code
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Rate Limited: WhatsApp Group Link */}
+              {isRateLimited && (
+                <div className="text-center">
+                  <a
+                    href={WHATSAPP_GROUP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-colors"
                   >
-                    {resending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Resending...
-                      </>
-                    ) : (
-                      'Resend confirmation email'
-                    )}
-                  </Button>
-                  {resendMessage && (
-                    <p className="text-sm text-gray-600 mt-2">{resendMessage}</p>
-                  )}
+                    Join our WhatsApp group for updates
+                  </a>
                 </div>
               )}
 

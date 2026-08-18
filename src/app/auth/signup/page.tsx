@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createSupabaseClient } from '@/lib/supabase-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Loader2, UserPlus } from 'lucide-react'
+import { isRateLimitError, RATE_LIMIT_MESSAGE } from '@/lib/rate-limit'
+import { WHATSAPP_GROUP_URL } from '@/lib/constants'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -22,21 +24,9 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
-  const [redirectCountdown, setRedirectCountdown] = useState(0)
+  const [isRateLimited, setIsRateLimited] = useState(false)
   const supabase = createSupabaseClient()
   const router = useRouter()
-
-  // Handle redirect countdown
-  useEffect(() => {
-    if (redirectCountdown > 0) {
-      const timer = setTimeout(() => {
-        setRedirectCountdown(redirectCountdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    } else if (redirectCountdown === 0 && messageType === 'success' && message.includes('Account created successfully')) {
-      router.push('/auth/signin')
-    }
-  }, [redirectCountdown, messageType, message, router])
 
   const getPasswordStrength = (password: string) => {
     let strength = 0
@@ -70,6 +60,7 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+    setIsRateLimited(false)
 
     // Validate email domain
     if (!email.endsWith('@srmist.edu.in')) {
@@ -99,16 +90,17 @@ export default function SignUpPage() {
       // Proceed with signup - let Supabase handle it
       const { data, error } = await supabase.auth.signUp({
         email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+        password
       })
 
       if (error) {
         // Handle specific error cases for duplicate emails
         const errorMessage = error.message.toLowerCase()
-        if (errorMessage.includes('user already registered') ||
+        if (isRateLimitError(error.message, error.status)) {
+          setMessage(RATE_LIMIT_MESSAGE)
+          setMessageType('error')
+          setIsRateLimited(true)
+        } else if (errorMessage.includes('user already registered') ||
             errorMessage.includes('already registered') ||
             errorMessage.includes('already been registered') ||
             errorMessage.includes('email already exists') ||
@@ -125,15 +117,10 @@ export default function SignUpPage() {
       } else if (data && data.user) {
         // Check if this is a new user by looking at identities array
         if (data.user.identities && data.user.identities.length > 0) {
-          // New user was created successfully
-          setMessage('Account created successfully! We\'ve sent a confirmation link to your email — please check your inbox (and spam folder) and click the link before signing in.')
-          setMessageType('success')
-
-          // Immediately sign out the user to prevent authentication
+          // New user was created successfully — verify email via OTP code
           await supabase.auth.signOut()
-
-          // Start countdown for redirect to login page
-          setRedirectCountdown(6)
+          router.push(`/auth/verify-signup-otp?email=${encodeURIComponent(email)}`)
+          return
         } else {
           // Email already exists - no identities means existing user
           // Check if user exists in auth_check table as additional verification
@@ -148,15 +135,10 @@ export default function SignUpPage() {
             setMessage('This email is already registered. Please sign in instead or use a different email address.')
             setMessageType('error')
           } else {
-            // This is actually a new user, proceed with success
-            setMessage('Account created successfully! We\'ve sent a confirmation link to your email — please check your inbox (and spam folder) and click the link before signing in.')
-            setMessageType('success')
-
-            // Immediately sign out the user to prevent authentication
+            // This is actually a new user, proceed with success — verify email via OTP code
             await supabase.auth.signOut()
-
-            // Start countdown for redirect to login page
-            setRedirectCountdown(6)
+            router.push(`/auth/verify-signup-otp?email=${encodeURIComponent(email)}`)
+            return
           }
         }
       } else {
@@ -328,20 +310,22 @@ export default function SignUpPage() {
                   )}
                   <AlertDescription className={messageType === 'success' ? 'text-green-800' : ''}>
                     {message}
-                    {redirectCountdown > 0 && messageType === 'success' && message.includes('Account created successfully') && (
-                      <div className="mt-2 text-sm text-green-700">
-                        <div>Redirecting to login page in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}...</div>
-                        <button
-                          type="button"
-                          onClick={() => router.push('/auth/signin')}
-                          className="mt-1 text-blue-600 hover:text-blue-800 underline text-xs"
-                        >
-                          Click here to go to login now
-                        </button>
-                      </div>
-                    )}
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Rate Limited: WhatsApp Group Link */}
+              {isRateLimited && (
+                <div className="text-center">
+                  <a
+                    href={WHATSAPP_GROUP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-colors"
+                  >
+                    Join our WhatsApp group for updates
+                  </a>
+                </div>
               )}
 
               {/* Submit Button */}

@@ -1,3 +1,5 @@
+export const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/BfZprjZU1R50RCtCEueR8N?s=qt&p=a&mlu=4'
+
 export const DOMAIN_SUBDOMAINS = {
   Technical: [
     'Web Development: Frontend',
