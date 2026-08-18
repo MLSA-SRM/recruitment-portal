@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import React from 'react'
-import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User } from 'lucide-react'
+import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User, MessageCircle } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 import { formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
 import { WHATSAPP_GROUP_URL } from '@/lib/constants'
@@ -291,17 +291,18 @@ export default async function DashboardPage() {
                   Browse Available Tasks
                 </Button>
               </Link>
-              <p className="text-sm text-muted-foreground">
-                Have questions?{' '}
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-3">Have questions or facing issues?</p>
                 <a
                   href={WHATSAPP_GROUP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-green-700 hover:underline"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 transition-colors"
                 >
+                  <MessageCircle className="h-4 w-4" />
                   Join our WhatsApp group
                 </a>
-              </p>
+              </div>
             </div>
           </CardContent>
         </Card>
