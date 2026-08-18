@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   Plus, // eslint-disable-line @typescript-eslint/no-unused-vars
+  Download,
+  History,
 } from 'lucide-react'
 
 export function Navigation() {
@@ -148,13 +150,33 @@ export function Navigation() {
                         </Button>
                       </Link>
                       <Link href="/admin/tasks">
-                        <Button 
-                          variant={isActive('/admin/tasks') ? 'default' : 'ghost'} 
+                        <Button
+                          variant={isActive('/admin/tasks') ? 'default' : 'ghost'}
                           size="sm"
                           className="px-3"
                         >
                           <FileText className="h-4 w-4 mr-1.5" />
                           Tasks
+                        </Button>
+                      </Link>
+                      <Link href="/admin/activity">
+                        <Button
+                          variant={isActive('/admin/activity') ? 'default' : 'ghost'}
+                          size="sm"
+                          className="px-3"
+                        >
+                          <History className="h-4 w-4 mr-1.5" />
+                          Activity
+                        </Button>
+                      </Link>
+                      <Link href="/admin/export">
+                        <Button
+                          variant={isActive('/admin/export') ? 'default' : 'ghost'}
+                          size="sm"
+                          className="px-3"
+                        >
+                          <Download className="h-4 w-4 mr-1.5" />
+                          Export
                         </Button>
                       </Link>
                     </div>
@@ -294,6 +316,18 @@ export function Navigation() {
                         <Button variant={isActive('/admin/tasks') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                           <FileText className="h-4 w-4 mr-2" />
                           Tasks
+                        </Button>
+                      </Link>
+                      <Link href="/admin/activity">
+                        <Button variant={isActive('/admin/activity') ? 'default' : 'ghost'} className="w-full justify-start h-10">
+                          <History className="h-4 w-4 mr-2" />
+                          Activity
+                        </Button>
+                      </Link>
+                      <Link href="/admin/export">
+                        <Button variant={isActive('/admin/export') ? 'default' : 'ghost'} className="w-full justify-start h-10">
+                          <Download className="h-4 w-4 mr-2" />
+                          Export
                         </Button>
                       </Link>
                     </>

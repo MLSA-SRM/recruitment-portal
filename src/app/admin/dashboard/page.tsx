@@ -2,28 +2,21 @@ import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { updateSubmissionStatus, triggerAIReviewForSubmission, deleteSubmission } from '@/app/actions'
-import { revalidatePath } from 'next/cache'
 import { AdminLayout } from '@/components/admin-layout'
 import { PaginationControls } from '@/components/pagination-controls'
+import { SubmissionsTable } from '@/components/submissions-table'
 import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
-import { 
-  Users, 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import {
+  Users,
+  FileText,
+  CheckCircle,
+  XCircle,
+  Clock,
   TrendingUp,
   BarChart3,
-  Plus,
-  CheckCircle2,
-  RefreshCw,
-  Trash2
+  Plus
 } from 'lucide-react'
 
 type Filters = { q?: string; year?: string; domain?: string; subdomain?: string; status?: string; minScore?: string; maxScore?: string; sort?: string; page?: string; limit?: string }
@@ -475,183 +468,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </DropdownMenu>
         <Link href="/admin/export"><Button type="button">Export Shortlisted CSV</Button></Link>
       </div>
-      <Card>
-        <CardContent className="px-6 py-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-semibold">Applicant</TableHead>
-                <TableHead className="font-semibold">RA Number</TableHead>
-                <TableHead className="font-semibold">Year</TableHead>
-                <TableHead className="font-semibold">Domain</TableHead>
-                <TableHead className="font-semibold">Subdomain</TableHead>
-                <TableHead className="font-semibold">AI Score</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {submissions.map((s: SubmissionWithJoins) => (
-                <TableRow 
-                  key={s.id} 
-                  className={`${
-                    s.status === 'shortlisted' ? 'bg-green-50 hover:bg-green-100' : 
-                    s.status === 'rejected' ? 'bg-red-50 hover:bg-red-100' : 
-                    'hover:bg-muted/50'
-                  } transition-colors`}
-                >
-                  <TableCell className="font-medium">{s.profiles?.name || '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.profiles?.ra_number || '—'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {s.profiles?.year ? `${s.profiles.year}${s.profiles.year === 1 ? 'st' : s.profiles.year === 2 ? 'nd' : s.profiles.year === 3 ? 'rd' : 'th'} Year` : '—'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{s.tasks?.domain || '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.tasks?.subdomain || '—'}</TableCell>
-                  <TableCell>
-                    {s.ai_score ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium">{s.ai_score}</span>
-                        <div className="w-16 bg-muted rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              s.ai_score >= 800 ? 'bg-green-500' :
-                              s.ai_score >= 600 ? 'bg-yellow-500' :
-                              s.ai_score >= 400 ? 'bg-orange-500' :
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${(s.ai_score / 1000) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={s.status === 'shortlisted' ? 'default' : s.status === 'rejected' ? 'destructive' : 'secondary'}
-                      className={`${
-                        s.status === 'shortlisted' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
-                        s.status === 'rejected' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
-                        'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                      }`}
-                    >
-                      {s.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Link href={`/admin/submission/${s.id}`}>
-                        <Button size="sm" variant="outline" className="h-8">
-                          Review
-                        </Button>
-                      </Link>
-                      <form action={async () => { 'use server'; await triggerAIReviewForSubmission(s.id as number); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                        <Button 
-                          type="submit" 
-                          size="sm" 
-                          variant="outline"
-                          className="h-8 flex items-center gap-1"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          AI
-                        </Button>
-                      </form>
-                      <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'shortlisted'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                        <Button 
-                          type="submit" 
-                          size="sm" 
-                          className={`h-8 relative ${
-                            s.ai_recommendation === 'shortlist'
-                              ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2 animate-pulse shadow-lg' 
-                              : 'bg-green-600 hover:bg-green-700'
-                          }`}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Accept
-                        </Button>
-                      </form>
-                      <form action={async () => { 'use server'; await updateSubmissionStatus(s.id as number, 'rejected'); cache.invalidatePattern('admin_submissions:'); revalidatePath('/admin/dashboard') }}>
-                        <Button 
-                          type="submit" 
-                          variant="destructive" 
-                          size="sm" 
-                          className={`h-8 relative ${
-                            s.ai_recommendation === 'reject'
-                              ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-400 ring-offset-2 animate-pulse shadow-lg' 
-                              : 'bg-red-600 hover:bg-red-700'
-                          }`}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </form>
-                      
-                      {/* Delete Submission Button */}
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-8 flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Delete Submission</DialogTitle>
-                            <DialogDescription>
-                              Are you sure you want to delete this submission? This action cannot be undone.
-                              <br />
-                              <br />
-                              <strong>Applicant:</strong> {s.profiles?.name || 'Unknown'} ({s.profiles?.ra_number || 'N/A'})
-                              <br />
-                              <strong>Task:</strong> {s.tasks?.domain || 'Unknown'} - {s.tasks?.subdomain || 'N/A'}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <DialogTrigger asChild>
-                              <Button variant="outline">Cancel</Button>
-                            </DialogTrigger>
-                            <form action={async () => { 
-                              'use server'
-                              try {
-                                await deleteSubmission(s.id as number)
-                                // Additional cache invalidation
-                                cache.invalidatePattern('admin_submissions:')
-                                cache.invalidatePattern('user_submissions:')
-                                cache.invalidatePattern('analytics:')
-                                cache.clear()
-                                revalidatePath('/admin/dashboard')
-                                revalidatePath('/dashboard')
-                                revalidatePath('/apply')
-                              } catch (error) {
-                                console.error('Failed to delete submission:', error)
-                              }
-                            }}>
-                              <Button 
-                                type="submit" 
-                                variant="destructive"
-                                className="flex items-center gap-2"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete Submission
-                              </Button>
-                            </form>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <SubmissionsTable submissions={submissions} />
 
       {/* Pagination Controls */}
       <PaginationControls 

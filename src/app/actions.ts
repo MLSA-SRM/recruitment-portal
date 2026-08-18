@@ -17,6 +17,27 @@ async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null
 }
 
+async function logAdminActivity(
+  action: string,
+  targetType: string,
+  targetId: string | number | null,
+  details: Record<string, unknown> = {}
+) {
+  try {
+    const supabase = await createSupabaseServer()
+    const adminId = await getCurrentUserId()
+    await supabase.from('admin_activity_log').insert({
+      admin_id: adminId,
+      action,
+      target_type: targetType,
+      target_id: targetId !== null ? String(targetId) : null,
+      details,
+    })
+  } catch (e) {
+    console.error('[admin_activity_log] failed to record activity:', e)
+  }
+}
+
 async function fetchGithubRepoFiles(repoUrl: string): Promise<string> {
   try {
     console.log('Fetching GitHub repo files from:', repoUrl)
@@ -834,7 +855,25 @@ async function retryAIReview(submissionId: number, prompt: string, supabase: Awa
 export async function updateSubmissionStatus(submissionId: number, status: Status) {
   const supabase = await createSupabaseServer()
   await supabase.from('submissions').update({ status }).eq('id', submissionId)
+  await logAdminActivity('status_change', 'submission', submissionId, { status })
+  const { cache } = await import('@/lib/cache')
+  cache.invalidatePattern('admin_submissions:')
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/dashboard')
   return { ok: true }
+}
+
+export async function bulkUpdateSubmissionStatus(submissionIds: number[], status: Status) {
+  if (submissionIds.length === 0) return { ok: true, count: 0 }
+  const supabase = await createSupabaseServer()
+  const { error } = await supabase.from('submissions').update({ status }).in('id', submissionIds)
+  if (error) throw error
+  await logAdminActivity('bulk_status_change', 'submission', null, { status, submissionIds })
+  const { cache } = await import('@/lib/cache')
+  cache.invalidatePattern('admin_submissions:')
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/dashboard')
+  return { ok: true, count: submissionIds.length }
 }
 
 export async function exportShortlistedCSV(): Promise<string> {
@@ -992,6 +1031,8 @@ export async function createTask(formData: FormData) {
     } else {
     }
   }
+
+  await logAdminActivity('create', 'task', task.id, { title, domain, subdomain })
 
   return { ok: true, taskId: task.id }
 }
@@ -1271,6 +1312,12 @@ export async function deleteTask(taskId: number) {
     throw new Error('Unauthorized: Admin access required')
   }
 
+  const { data: taskToDelete } = await supabase
+    .from('tasks')
+    .select('title')
+    .eq('id', taskId)
+    .single()
+
   try {
     // First, delete all related data in the correct order to avoid foreign key constraints
 
@@ -1329,6 +1376,8 @@ export async function deleteTask(taskId: number) {
     } else if (rpcDeleteError) {
       throw rpcDeleteError
     }
+
+    await logAdminActivity('delete', 'task', taskId, { title: taskToDelete?.title ?? null })
 
     return { ok: true }
   } catch (error) {
@@ -1438,6 +1487,12 @@ export async function deleteSubmission(submissionId: number) {
     applicantName: profile?.name,
     applicantRA: profile?.ra_number,
     taskTitle: task?.title
+  })
+
+  await logAdminActivity('delete', 'submission', submissionId, {
+    applicantName: profile?.name ?? null,
+    applicantRA: profile?.ra_number ?? null,
+    taskTitle: task?.title ?? null,
   })
 
   // Delete the submission using admin function

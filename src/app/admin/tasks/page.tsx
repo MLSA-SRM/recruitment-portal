@@ -49,6 +49,7 @@ export default function TasksPage() {
   }[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [applicantCounts, setApplicantCounts] = useState<Record<number, number>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
   const [selectedSubdomain, setSelectedSubdomain] = useState('')
@@ -72,6 +73,18 @@ export default function TasksPage() {
 
       if (error) throw error
       setTasks(data || [])
+
+      const { data: submissionRows, error: submissionsError } = await supabase
+        .from('submissions')
+        .select('task_id')
+
+      if (!submissionsError && submissionRows) {
+        const counts: Record<number, number> = {}
+        for (const row of submissionRows as { task_id: number }[]) {
+          counts[row.task_id] = (counts[row.task_id] || 0) + 1
+        }
+        setApplicantCounts(counts)
+      }
     } catch (error) {
       console.error('Error loading tasks:', error)
       setError(error instanceof Error ? error.message : 'Failed to load tasks')
@@ -504,6 +517,10 @@ export default function TasksPage() {
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
                         <span><strong>Deadline:</strong> {new Date(task.deadline || '').toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FileText className="h-4 w-4" />
+                        <span><strong>Applicants:</strong> {applicantCounts[task.id] || 0}</span>
                       </div>
                     </div>
 
