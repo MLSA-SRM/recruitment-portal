@@ -116,7 +116,7 @@ export default function VerifyOTPPage() {
         <CardHeader className="text-center">
           <CardTitle>Verify Your Email</CardTitle>
           <CardDescription>
-            Enter the 6-digit code sent to <br />
+            Enter the 8-digit code sent to <br />
             <span className="font-medium text-gray-900">{email}</span>
           </CardDescription>
         </CardHeader>
@@ -130,14 +130,14 @@ export default function VerifyOTPPage() {
                 id="otp"
                 type="text"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000000"
                 className="text-center text-2xl tracking-widest font-mono"
-                maxLength={6}
+                maxLength={8}
                 required
               />
               <p className="text-xs text-gray-500 mt-1 text-center">
-                Enter the 6-digit code from your email
+                Enter the 8-digit code from your email
               </p>
             </div>
 
@@ -151,9 +151,9 @@ export default function VerifyOTPPage() {
               </div>
             )}
 
-            <Button 
-              type="submit" 
-              disabled={loading || otp.length !== 6} 
+            <Button
+              type="submit"
+              disabled={loading || otp.length !== 8}
               className="w-full"
             >
               {loading ? 'Verifying...' : 'Verify Code'}

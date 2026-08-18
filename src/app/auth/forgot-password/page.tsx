@@ -197,7 +197,7 @@ export default function ForgotPasswordPage() {
             {step === 'email' && 'Enter your email to receive a verification code.'}
             {step === 'otp' && (
               <>
-                Enter the 6-digit code sent to <span className="font-medium text-gray-900">{email}</span>.
+                Enter the 8-digit code sent to <span className="font-medium text-gray-900">{email}</span>.
               </>
             )}
             {step === 'password' && 'Enter and confirm your new password.'}
@@ -239,10 +239,10 @@ export default function ForgotPasswordPage() {
                   id="otp"
                   type="text"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  placeholder="00000000"
                   className="text-center text-2xl tracking-widest font-mono"
-                  maxLength={6}
+                  maxLength={8}
                   required
                 />
                 <div className="flex items-center justify-between mt-2">
@@ -263,7 +263,7 @@ export default function ForgotPasswordPage() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" disabled={loading || otp.length !== 6} className="w-full">
+              <Button type="submit" disabled={loading || otp.length !== 8} className="w-full">
                 {loading ? 'Verifying…' : 'Verify code'}
               </Button>
             </form>

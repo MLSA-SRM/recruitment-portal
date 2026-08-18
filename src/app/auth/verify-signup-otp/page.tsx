@@ -49,7 +49,7 @@ function VerifySignupOTPForm() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || otp.length !== 6) return
+    if (!email || otp.length !== 8) return
 
     setLoading(true)
     setMessage('')
@@ -131,7 +131,7 @@ function VerifySignupOTPForm() {
         <CardHeader className="text-center">
           <CardTitle>Verify Your Email</CardTitle>
           <CardDescription>
-            We sent a 6-digit code to <br />
+            We sent an 8-digit code to <br />
             <span className="font-medium text-gray-900">{email}</span>
             <br />
             Check your inbox (and spam folder) and enter it below.
@@ -148,15 +148,15 @@ function VerifySignupOTPForm() {
                 type="text"
                 inputMode="numeric"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000000"
                 className="text-center text-2xl tracking-widest font-mono"
-                maxLength={6}
+                maxLength={8}
                 required
                 autoFocus
               />
               <p className="text-xs text-gray-500 mt-1 text-center">
-                Enter the 6-digit code from your email
+                Enter the 8-digit code from your email
               </p>
             </div>
 
@@ -186,7 +186,7 @@ function VerifySignupOTPForm() {
               </div>
             )}
 
-            <Button type="submit" disabled={loading || otp.length !== 6} className="w-full">
+            <Button type="submit" disabled={loading || otp.length !== 8} className="w-full">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -217,6 +217,18 @@ function VerifySignupOTPForm() {
                 <Link href="/auth/signup" className="text-indigo-600 hover:underline">
                   Go back
                 </Link>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                Trouble receiving the code?{' '}
+                <a
+                  href={WHATSAPP_GROUP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-700 hover:underline"
+                >
+                  Join our WhatsApp group
+                </a>
               </div>
             </div>
           </form>
