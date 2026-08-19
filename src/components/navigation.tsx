@@ -16,6 +16,7 @@ import {
   Plus, // eslint-disable-line @typescript-eslint/no-unused-vars
   Download,
   History,
+  Users,
 } from 'lucide-react'
 
 export function Navigation() {
@@ -167,6 +168,16 @@ export function Navigation() {
                         >
                           <History className="h-4 w-4 mr-1.5" />
                           Activity
+                        </Button>
+                      </Link>
+                      <Link href="/admin/users">
+                        <Button
+                          variant={isActive('/admin/users') ? 'default' : 'ghost'}
+                          size="sm"
+                          className="px-3"
+                        >
+                          <Users className="h-4 w-4 mr-1.5" />
+                          Users
                         </Button>
                       </Link>
                       <Link href="/admin/export">
@@ -322,6 +333,12 @@ export function Navigation() {
                         <Button variant={isActive('/admin/activity') ? 'default' : 'ghost'} className="w-full justify-start h-10">
                           <History className="h-4 w-4 mr-2" />
                           Activity
+                        </Button>
+                      </Link>
+                      <Link href="/admin/users">
+                        <Button variant={isActive('/admin/users') ? 'default' : 'ghost'} className="w-full justify-start h-10">
+                          <Users className="h-4 w-4 mr-2" />
+                          Users
                         </Button>
                       </Link>
                       <Link href="/admin/export">
