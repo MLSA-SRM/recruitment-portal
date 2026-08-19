@@ -43,7 +43,7 @@ export default function SignInPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
@@ -64,7 +64,14 @@ export default function SignInPage() {
       } else {
         setMessage('Successfully signed in! Redirecting...')
         setMessageType('success')
-        redirectAfterLogin('/apply')
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', data.user.id)
+          .single()
+
+        redirectAfterLogin(profile?.is_admin ? '/admin/dashboard' : '/apply')
       }
     } catch {
       setMessage('An unexpected error occurred')
