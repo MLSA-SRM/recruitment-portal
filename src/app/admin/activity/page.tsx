@@ -1,4 +1,5 @@
 import { createSupabaseServer } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/require-admin'
 import { AdminLayout } from '@/components/admin-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -69,6 +70,7 @@ function statusBadge(row: ActivityRow) {
 }
 
 export default async function AdminActivityPage() {
+  await requireAdmin()
   const supabase = await createSupabaseServer()
   const { data, error } = await supabase
     .from('admin_activity_log')

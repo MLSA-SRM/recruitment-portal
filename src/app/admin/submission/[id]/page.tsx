@@ -12,6 +12,7 @@ import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, FileText, User, Award, 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { cache } from '@/lib/cache'
+import { requireAdmin } from '@/lib/require-admin'
 
 type SubmissionFieldInfo = {
   value: unknown
@@ -45,6 +46,7 @@ type AdminSubmissionView = {
 }
 
 export default async function SubmissionDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin()
   const { id } = await params
   const supabase = await createSupabaseServer()
   const { data: submission } = await supabase

@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AdminLayout } from '@/components/admin-layout'
 import { PaginationControls } from '@/components/pagination-controls'
 import { SubmissionsTable } from '@/components/submissions-table'
+import { requireAdmin } from '@/lib/require-admin'
 import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
 import {
   Users,
@@ -158,6 +159,7 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
 
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<Filters> }) {
+  await requireAdmin()
   const resolvedSearchParams = await searchParams
   const { submissions, total, page, totalPages, aggregates } = await getSubmissions(resolvedSearchParams as Filters)
   
