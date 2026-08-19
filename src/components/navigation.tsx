@@ -111,27 +111,31 @@ export function Navigation() {
             ) : (
               // Authenticated with profile - show appropriate navigation
               <div className="flex items-center space-x-1">
-                <Link href="/apply">
-                  <Button 
-                    variant={isActive('/apply') ? 'default' : 'ghost'} 
-                    size="sm"
-                    className="px-3"
-                  >
-                    <Briefcase className="h-4 w-4 mr-1.5" />
-                    Browse Tasks
-                  </Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button 
-                    variant={isActive('/dashboard') ? 'default' : 'ghost'} 
-                    size="sm"
-                    className="px-3"
-                  >
-                    <UserCheck className="h-4 w-4 mr-1.5" />
-                    My Submissions
-                  </Button>
-                </Link>
-                
+                {!profile.is_admin && (
+                  <>
+                    <Link href="/apply">
+                      <Button
+                        variant={isActive('/apply') ? 'default' : 'ghost'}
+                        size="sm"
+                        className="px-3"
+                      >
+                        <Briefcase className="h-4 w-4 mr-1.5" />
+                        Browse Tasks
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard">
+                      <Button
+                        variant={isActive('/dashboard') ? 'default' : 'ghost'}
+                        size="sm"
+                        className="px-3"
+                      >
+                        <UserCheck className="h-4 w-4 mr-1.5" />
+                        My Submissions
+                      </Button>
+                    </Link>
+                  </>
+                )}
+
                 {/* Admin Navigation */}
                 {profile.is_admin && (
                   <>
@@ -300,18 +304,22 @@ export function Navigation() {
               ) : (
                 // Authenticated with profile - show appropriate navigation
                 <>
-                  <Link href="/apply">
-                    <Button variant={isActive('/apply') ? 'default' : 'ghost'} className="w-full justify-start h-10">
-                      <Briefcase className="h-4 w-4 mr-2" />
-                      Browse Tasks
-                    </Button>
-                  </Link>
-                  <Link href="/dashboard">
-                    <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} className="w-full justify-start h-10">
-                      <UserCheck className="h-4 w-4 mr-2" />
-                      My Submissions
-                    </Button>
-                  </Link>
+                  {!profile.is_admin && (
+                    <>
+                      <Link href="/apply">
+                        <Button variant={isActive('/apply') ? 'default' : 'ghost'} className="w-full justify-start h-10">
+                          <Briefcase className="h-4 w-4 mr-2" />
+                          Browse Tasks
+                        </Button>
+                      </Link>
+                      <Link href="/dashboard">
+                        <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} className="w-full justify-start h-10">
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          My Submissions
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                   {profile.is_admin && (
                     <>
                       <div className="pt-2 pb-1">
