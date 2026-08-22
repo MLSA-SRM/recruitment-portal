@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PaginationControls } from '@/components/pagination-controls'
 import { Users } from 'lucide-react'
+import { ALL_DOMAINS } from '@/lib/constants'
 
-type Filters = { q?: string; year?: string; department?: string; page?: string; limit?: string }
+type Filters = { q?: string; year?: string; department?: string; domain?: string; page?: string; limit?: string }
 
 type ProfileRow = {
   id: string
@@ -22,6 +23,8 @@ type ProfileRow = {
   year: number | null
   domain: string | null
   subdomain: string | null
+  domains: string[] | null
+  subdomains: string[] | null
   is_admin: boolean
   created_at: string | null
 }
@@ -36,10 +39,14 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, ra_number, phone_number, department, branch, year, domain, subdomain, is_admin, created_at')
+    .select('id, name, ra_number, phone_number, department, branch, year, domain, subdomain, domains, subdomains, is_admin, created_at')
     .order('created_at', { ascending: false })
 
   let rows = (error ? [] : (data || [])) as ProfileRow[]
+
+  function domainsOf(r: ProfileRow): string[] {
+    return r.domains && r.domains.length > 0 ? r.domains : (r.domain ? [r.domain] : [])
+  }
 
   if (resolvedSearchParams.q) {
     const q = resolvedSearchParams.q.toLowerCase()
@@ -50,6 +57,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   }
   if (resolvedSearchParams.department) {
     rows = rows.filter((r) => (r.department ?? '') === resolvedSearchParams.department)
+  }
+  if (resolvedSearchParams.domain) {
+    rows = rows.filter((r) => domainsOf(r).includes(resolvedSearchParams.domain as string))
   }
 
   const total = rows.length
@@ -65,6 +75,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     if (resolvedSearchParams.q && key !== 'q') params.set('q', resolvedSearchParams.q)
     if (resolvedSearchParams.year && key !== 'year') params.set('year', resolvedSearchParams.year)
     if (resolvedSearchParams.department && key !== 'department') params.set('department', resolvedSearchParams.department)
+    if (resolvedSearchParams.domain && key !== 'domain') params.set('domain', resolvedSearchParams.domain)
     if (value) params.set(key, value)
     return `/admin/users?${params.toString()}`
   }
@@ -87,6 +98,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             <Input name="q" defaultValue={resolvedSearchParams.q} placeholder="Search name or RA number" />
             {resolvedSearchParams.year && <input type="hidden" name="year" value={resolvedSearchParams.year} />}
             {resolvedSearchParams.department && <input type="hidden" name="department" value={resolvedSearchParams.department} />}
+            {resolvedSearchParams.domain && <input type="hidden" name="domain" value={resolvedSearchParams.domain} />}
             {resolvedSearchParams.limit && <input type="hidden" name="limit" value={resolvedSearchParams.limit} />}
           </form>
           <DropdownMenu>
@@ -118,6 +130,20 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50">
+                Domain {resolvedSearchParams.domain ? `: ${resolvedSearchParams.domain}` : ''}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Filter by Domain</DropdownMenuLabel>
+              <DropdownMenuItem asChild><Link href={hrefWith('domain')}>Any</Link></DropdownMenuItem>
+              {ALL_DOMAINS.map((d) => (
+                <DropdownMenuItem key={d} asChild><Link href={hrefWith('domain', d)}>{d}</Link></DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <Card>
@@ -131,7 +157,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   <TableHead className="font-semibold">Department</TableHead>
                   <TableHead className="font-semibold">Branch</TableHead>
                   <TableHead className="font-semibold">Phone</TableHead>
-                  <TableHead className="font-semibold">Domain / Subdomain</TableHead>
+                  <TableHead className="font-semibold">Domains</TableHead>
                   <TableHead className="font-semibold">Joined</TableHead>
                 </TableRow>
               </TableHeader>
@@ -161,7 +187,13 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                     <TableCell className="text-muted-foreground">{r.branch || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{r.phone_number || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {r.domain ? `${r.domain}${r.subdomain ? ` — ${r.subdomain}` : ''}` : '—'}
+                      {domainsOf(r).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {domainsOf(r).map((d) => (
+                            <Badge key={d} variant="outline" className="text-xs">{d}</Badge>
+                          ))}
+                        </div>
+                      ) : '—'}
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
