@@ -501,6 +501,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                       <div className="prose prose-gray max-w-none text-gray-700 leading-relaxed">
                         <MarkdownRenderer content={task.deliverables} />
                       </div>
+                      <p className="mt-4 border-t border-green-200 pt-4 text-sm text-green-800">
+                        Completing this one task counts as your submission for the {task.domain} domain. You need at least one submission per domain you applied to.
+                      </p>
                     </div>
                   </div>
                 )}

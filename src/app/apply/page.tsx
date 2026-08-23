@@ -122,10 +122,15 @@ export default async function ApplyPage() {
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
             Showing tasks matching your domains ({userDomains.join(', ')}) and subdomains ({userSubdomains.join(', ')}).
-            {(!tasks || tasks.length === 0) && 
+            {(!tasks || tasks.length === 0) &&
               ` No tasks are currently available for your specific profile. Check back later for new opportunities.`
             }
           </p>
+          {tasks && tasks.length > 0 && (
+            <p className="mt-4 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+              You need <strong>at least one submission per domain</strong> you applied to. Pick whichever task appeals to you most within that domain &mdash; each task counts as one complete submission.
+            </p>
+          )}
         </div>
 
         {tasks && tasks.length > 0 ? (
