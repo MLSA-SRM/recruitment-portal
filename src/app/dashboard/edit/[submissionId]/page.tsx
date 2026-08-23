@@ -31,7 +31,6 @@ interface Task {
   description: string | null
   domain: string
   subdomain: string | null
-  target_year: number
   deadline: string | null
 }
 
@@ -408,9 +407,6 @@ export default function EditSubmissionPage() {
                 <strong>Subdomain:</strong> {task.subdomain}
               </div>
             )}
-            <div>
-              <strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year
-            </div>
             <div>
               <strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
             </div>

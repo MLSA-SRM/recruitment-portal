@@ -19,7 +19,6 @@ interface Task {
   description: string
   domain: string
   subdomain: string
-  target_year: number
   deadline: string
   created_at: string
   image_url?: string
@@ -221,12 +220,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     return `Due in ${diffDays} days`
   }
 
-  function ordinal(n: number) {
-    const s = ["th","st","nd","rd"]
-    const v = n % 100
-    return n + (s[(v - 20) % 10] || s[v] || s[0])
-  }
-
   const getActionButton = () => {
     if (loading) {
       return <Skeleton className="h-10 w-full" />
@@ -417,9 +410,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                         {task.subdomain}
                       </Badge>
                     )}
-                    <Badge className="bg-purple-100 text-purple-800 border-purple-200 px-3 py-1">
-                      {ordinal(task.target_year)} Year
-                    </Badge>
                   </div>
 
                   {/* Key Info */}
@@ -548,17 +538,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                           <p className="text-lg font-semibold text-gray-900">{task.subdomain}</p>
                         </div>
                       )}
-
-                      {/* Target Year */}
-                      <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <Users className="h-4 w-4 text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium text-green-700 uppercase tracking-wide">Target Year</span>
-                        </div>
-                        <p className="text-lg font-semibold text-gray-900">{ordinal(task.target_year)}</p>
-                      </div>
 
                       {/* Deadline */}
                       {deadlineDate && (

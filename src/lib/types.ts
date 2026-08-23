@@ -8,7 +8,6 @@ export interface Profile {
   subdomain: string // Legacy field - will be deprecated
   domains: string[] // New field for multiple domains
   subdomains: string[] // New field for multiple subdomains
-  target_year: number
   is_admin: boolean
   created_at: string
   updated_at: string
@@ -20,7 +19,6 @@ export interface Task {
   description: string
   domain: string
   subdomain: string
-  target_year: number
   deadline: string
   requirements: string
   deliverables: string
@@ -70,7 +68,6 @@ export interface SubmissionWithTask {
     title: string
     domain: string
     subdomain?: string
-    target_year?: number
     deadline?: string
   }> | null
 }

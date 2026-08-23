@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Calendar, Clock, FileText, AlertCircle, CheckCircle, Edit, Eye, Upload, Target, Users } from 'lucide-react'
+import { Calendar, Clock, FileText, AlertCircle, CheckCircle, Edit, Eye, Upload, Target } from 'lucide-react'
 import Link from 'next/link'
 import { handleSubmission } from '@/app/actions'
 import { useState, useEffect } from 'react'
@@ -24,7 +24,6 @@ interface Task {
   description: string
   domain: string
   subdomain: string
-  target_year: number
   deadline: string
   image_url?: string
   requirements?: string
@@ -207,10 +206,6 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
               {task.subdomain}
             </Badge>
           )}
-          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700">
-            <Users className="h-3 w-3 mr-1" />
-            {task.target_year}{task.target_year === 1 ? 'st' : task.target_year === 2 ? 'nd' : task.target_year === 3 ? 'rd' : 'th'} Year
-          </Badge>
         </div>
         
         {/* Deadline and Status Information */}

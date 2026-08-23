@@ -72,7 +72,7 @@ export interface Database {
           description: string | null
           domain: string
           subdomain: string | null
-          target_year: number
+          target_year: number | null
           deadline: string | null
           requirements: string | null
           deliverables: string | null
@@ -88,7 +88,7 @@ export interface Database {
           description?: string | null
           domain: string
           subdomain?: string | null
-          target_year: number
+          target_year?: number | null
           deadline?: string | null
           requirements?: string | null
           deliverables?: string | null
@@ -104,7 +104,7 @@ export interface Database {
           description?: string | null
           domain?: string
           subdomain?: string | null
-          target_year?: number
+          target_year?: number | null
           deadline?: string | null
           requirements?: string | null
           deliverables?: string | null

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye, ExternalLink, Users, Target } from 'lucide-react'
+import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye, ExternalLink, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageLightbox from '@/components/image-lightbox'
 import { getDomainColor } from '@/lib/constants'
@@ -16,7 +16,6 @@ interface Task {
   description: string
   domain: string
   subdomain: string
-  target_year: number
   deadline: string
   created_at: string
   image_url?: string
@@ -90,12 +89,6 @@ export default function TaskCard({ task }: TaskCardProps) {
       setIsDeadlinePassed(deadlineDate < new Date())
     }
   }, [deadlineDate])
-
-  function ordinal(n: number) {
-    const s = ["th","st","nd","rd"]
-    const v = n % 100
-    return n + (s[(v - 20) % 10] || s[v] || s[0])
-  }
 
   const getStatusBadge = () => {
     if (loading) return null
@@ -287,10 +280,6 @@ export default function TaskCard({ task }: TaskCardProps) {
               {task.subdomain}
             </Badge>
           )}
-          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors">
-            <Users className="h-3 w-3 mr-1" />
-            {ordinal(task.target_year)} Year
-          </Badge>
         </div>
 
         {/* Timeline Section */}

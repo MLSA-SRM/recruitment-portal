@@ -145,7 +145,7 @@ async function performAIReview(opts: {
   // Get task info first to determine if URL validation is needed
   const { data: task } = await supabase
     .from('tasks')
-    .select('title, description, domain, subdomain, target_year, deadline, image_url')
+    .select('title, description, domain, subdomain, deadline, image_url')
     .eq('id', taskId)
     .single()
 
@@ -558,7 +558,7 @@ Recommendations: ${aiUsageEvaluation.recommendations.join('; ')}`
     }
     
     // Encourage concise output and include task context
-    const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Target Year: ${task?.target_year ?? ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}${task?.image_url ? `\n- Task Image URL: ${task.image_url}` : ''}`
+    const taskContext = `TASK CONTEXT:\n- Title: ${task?.title ?? ''}\n- Domain: ${task?.domain ?? ''}${task?.subdomain ? ` > ${task.subdomain}` : ''}\n- Deadline: ${task?.deadline ?? ''}\n- Description: ${(task?.description ?? '').slice(0, 500)}${task?.image_url ? `\n- Task Image URL: ${task.image_url}` : ''}`
     
     const concisePrompt = `${taskContext}${urlAnalysisContext}
 
@@ -913,7 +913,6 @@ const createTaskSchema = z.object({
   description: z.string().optional().default(''),
   domain: z.string().min(1),
   subdomain: z.string().min(1),
-  target_year: z.coerce.number().int().positive(),
   deadline: z.string().min(1).transform((val) => {
     // Always ensure time is set to 23:59 (end of day) for consistency
     if (val && !val.includes('T')) {
@@ -943,7 +942,6 @@ export async function createTask(formData: FormData) {
     description: formData.get('description') || '',
     domain: formData.get('domain'),
     subdomain: formData.get('subdomain') || '',
-    target_year: formData.get('target_year'),
     deadline: formData.get('deadline') || '',
     estimated_duration: formData.get('estimated_duration') || '',
     requirements: formData.get('requirements') || '',
@@ -952,7 +950,7 @@ export async function createTask(formData: FormData) {
     submissionFields: formData.get('submissionFields') || undefined,
   })
   if (!parsed.success) throw new Error('Invalid task payload')
-  const { title, description, domain, subdomain, target_year: targetYear, deadline, estimated_duration: estimatedDuration, requirements, deliverables, image_url: imageUrl, submissionFields: submissionFieldsData } = parsed.data
+  const { title, description, domain, subdomain, deadline, estimated_duration: estimatedDuration, requirements, deliverables, image_url: imageUrl, submissionFields: submissionFieldsData } = parsed.data
   
   
   // Get submission fields from form data
@@ -991,7 +989,6 @@ export async function createTask(formData: FormData) {
       description,
       domain,
       subdomain,
-      target_year: targetYear,
       deadline,
       estimated_duration: estimatedDuration,
       requirements,
@@ -1228,7 +1225,7 @@ export async function canSubmitToTask(taskId: number) {
   // Get task details
   const { data: task } = await supabase
     .from('tasks')
-    .select('deadline, domain, subdomain, target_year')
+    .select('deadline, domain, subdomain')
     .eq('id', taskId)
     .single()
 
@@ -1253,8 +1250,7 @@ export async function canSubmitToTask(taskId: number) {
       : [profile.subdomain].filter(Boolean) as string[]
 
     const canAccess = domainsArray.includes(task.domain) &&
-                     subdomainsArray.includes(task.subdomain) &&
-                     task.target_year === profile.year
+                     subdomainsArray.includes(task.subdomain)
 
     if (!canAccess) {
       return {

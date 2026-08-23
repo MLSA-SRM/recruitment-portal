@@ -63,7 +63,6 @@ export default function TestSupabasePage() {
         description: 'Testing if we can insert tasks',
         domain: 'Technical',
         subdomain: 'Web Development: Frontend',
-        target_year: 1,
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       }
       

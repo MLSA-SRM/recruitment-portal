@@ -26,7 +26,6 @@ export default function CreateTaskPage() {
     description: '',
     domain: 'none',
     subdomain: 'none',
-    target_year: 'all',
     deadline: '',
     estimated_duration: '',
     requirements: '',
@@ -131,13 +130,6 @@ export default function CreateTaskPage() {
           delete newErrors.subdomain
         }
         break
-      case 'target_year':
-        if (!value || value === 'all') {
-          newErrors.target_year = 'Target year is required'
-        } else {
-          delete newErrors.target_year
-        }
-        break
       case 'deadline':
         if (!value) {
           newErrors.deadline = 'Deadline is required'
@@ -208,7 +200,6 @@ export default function CreateTaskPage() {
     if (!formData.title.trim()) newErrors.title = 'Task title is required'
     if (!formData.domain || formData.domain === 'none') newErrors.domain = 'Domain is required'
     if (!formData.subdomain || formData.subdomain === 'none') newErrors.subdomain = 'Subdomain is required'
-    if (!formData.target_year || formData.target_year === 'all') newErrors.target_year = 'Target year is required'
     if (!formData.deadline) newErrors.deadline = 'Deadline is required'
     if (!formData.description.trim()) newErrors.description = 'Description is required'
     
@@ -309,7 +300,7 @@ export default function CreateTaskPage() {
 
   // Calculate form completion percentage
   const getFormProgress = () => {
-    const requiredFields = ['title', 'description', 'domain', 'subdomain', 'target_year', 'deadline']
+    const requiredFields = ['title', 'description', 'domain', 'subdomain', 'deadline']
     const completedFields = requiredFields.filter(field => {
       const value = formData[field as keyof typeof formData]
       return value && value !== 'all' && value !== 'none' && value.trim() !== ''
@@ -323,7 +314,6 @@ export default function CreateTaskPage() {
            formData.description.trim() !== '' &&
            formData.domain !== '' && formData.domain !== 'none' &&
            formData.subdomain !== '' && formData.subdomain !== 'none' &&
-           formData.target_year !== '' && formData.target_year !== 'all' &&
            formData.deadline !== ''
   }
 
@@ -523,28 +513,6 @@ export default function CreateTaskPage() {
                 )}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="target_year" className="text-sm font-medium text-gray-700">Target Year *</Label>
-              <Select 
-                value={formData.target_year} 
-                onValueChange={(value) => handleInputChange('target_year', value)}
-              >
-                <SelectTrigger className={errors.target_year ? 'border-red-500 focus:ring-red-500' : ''}>
-                  <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1st Year</SelectItem>
-                  <SelectItem value="2">2nd Year</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.target_year && (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.target_year}
-                </p>
-              )}
-            </div>
           </CardContent>
         </Card>
 
@@ -679,11 +647,6 @@ export default function CreateTaskPage() {
                         {formData.subdomain && formData.subdomain !== 'none' && (
                           <Badge variant="outline" className="px-3 py-1">
                             {formData.subdomain}
-                          </Badge>
-                        )}
-                        {formData.target_year && formData.target_year !== 'all' && (
-                          <Badge variant="secondary" className="px-3 py-1">
-                            {formData.target_year === '1' ? '1st' : '2nd'} Year
                           </Badge>
                         )}
                       </div>

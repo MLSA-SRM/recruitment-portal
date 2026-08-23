@@ -9,7 +9,6 @@ const updateTaskSchema = z.object({
   description: z.string().optional().default(''),
   domain: z.string().min(1),
   subdomain: z.string().min(1),
-  target_year: z.coerce.number().int().positive(),
   deadline: z.string().min(1).transform((val) => {
     // Always ensure time is set to 23:59 (end of day) for consistency
     if (val && !val.includes('T')) {

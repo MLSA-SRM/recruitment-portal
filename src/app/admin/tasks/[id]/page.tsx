@@ -30,7 +30,6 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
     description: string | null
     domain: string
     subdomain: string | null
-    target_year: number
     deadline: string | null
     requirements: string | null
     deliverables: string | null
@@ -219,12 +218,6 @@ export default function TaskViewPage({ params }: { params: Promise<{ id: string 
                   </span>
                 </div>
               )}
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  <strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year
-                </span>
-              </div>
             </div>
           </CardContent>
         </Card>

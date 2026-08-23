@@ -101,17 +101,16 @@ export default async function ApplyPage() {
     )
   }
 
-  // Get tasks filtered by user's domains, subdomains, and year
+  // Get tasks filtered by user's domains and subdomains
   // Support both legacy single values and new array values
   const userDomains = profile.domains && profile.domains.length > 0 ? profile.domains : [profile.domain].filter(Boolean)
   const userSubdomains = profile.subdomains && profile.subdomains.length > 0 ? profile.subdomains : [profile.subdomain].filter(Boolean)
-  
+
   const { data: tasks } = await supabase
     .from('tasks')
     .select('*')
     .in('domain', userDomains)
     .in('subdomain', userSubdomains)
-    .eq('target_year', profile.year)
     .order('created_at', { ascending: false })
 
   return (
@@ -122,7 +121,7 @@ export default async function ApplyPage() {
             Available Tasks for Your Domains
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
-            Showing tasks matching your domains ({userDomains.join(', ')}), subdomains ({userSubdomains.join(', ')}), and {profile.year === 1 ? '1st' : '2nd'} year level.
+            Showing tasks matching your domains ({userDomains.join(', ')}) and subdomains ({userSubdomains.join(', ')}).
             {(!tasks || tasks.length === 0) && 
               ` No tasks are currently available for your specific profile. Check back later for new opportunities.`
             }

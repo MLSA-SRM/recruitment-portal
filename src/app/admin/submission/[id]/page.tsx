@@ -40,7 +40,6 @@ type AdminSubmissionView = {
     title: string
     domain: string
     subdomain?: string
-    target_year?: number
     deadline?: string
   } | null
 }
@@ -60,7 +59,7 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
       ai_recommendation,
       submission_data,
       profiles:profiles!submissions_applicant_id_fkey(name, ra_number, phone_number, department, branch, year),
-      tasks:tasks!submissions_task_id_fkey(title, domain, subdomain, target_year, deadline)
+      tasks:tasks!submissions_task_id_fkey(title, domain, subdomain, deadline)
     `)
     .eq('id', Number(id))
     .single()
@@ -96,14 +95,12 @@ export default async function SubmissionDetail({ params }: { params: Promise<{ i
           title: string
           domain: string
           subdomain?: string
-          target_year?: number
           deadline?: string
         }
       | Array<{
           title: string
           domain: string
           subdomain?: string
-          target_year?: number
           deadline?: string
         }>
       | null

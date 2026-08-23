@@ -110,7 +110,7 @@ export default async function DashboardPage() {
       ai_review,
       created_at,
       updated_at,
-      tasks!submissions_task_id_fkey(title, domain, subdomain, target_year, deadline)
+      tasks!submissions_task_id_fkey(title, domain, subdomain, deadline)
     `)
     .eq('applicant_id', user.id)
     .order('created_at', { ascending: false })
@@ -206,7 +206,7 @@ export default async function DashboardPage() {
           {typedSubmissions.map((submission) => {
             // Normalize task relation (can be object or single-item array depending on PostgREST)
             const rawTask = submission.tasks as unknown
-            const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; target_year?: number; deadline?: string }) | null)
+            const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; deadline?: string }) | null)
             const deadlinePassed = task?.deadline ? isDeadlinePassed(task.deadline) : false
             const canEdit = submission.status === 'pending' && !deadlinePassed
             
@@ -255,15 +255,15 @@ export default async function DashboardPage() {
                   <div className="space-y-4">
                     {/* Submission Details Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {/* Target Year */}
+                      {/* Subdomain */}
                       <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
                         <div className="flex items-center justify-center w-8 h-8 bg-amber-100 rounded-md">
                           <Users className="h-4 w-4 text-amber-700" />
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">Target Year</div>
+                          <div className="text-xs text-muted-foreground">Subdomain</div>
                           <div className="text-sm font-medium text-foreground">
-                            {task?.target_year ? `${task.target_year === 1 ? '1st' : task.target_year === 2 ? '2nd' : task.target_year === 3 ? '3rd' : `${task.target_year}th`} Year` : '—'}
+                            {task?.subdomain || '—'}
                           </div>
                         </div>
                       </div>

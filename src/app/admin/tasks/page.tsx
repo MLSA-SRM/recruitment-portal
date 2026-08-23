@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { AdminLayout } from '@/components/admin-layout'
@@ -16,8 +15,7 @@ import {
   Edit, 
   Trash2, 
   Eye, 
-  Calendar, 
-  Users, 
+  Calendar,
   Target,
   Clock,
   TrendingUp,
@@ -40,7 +38,6 @@ export default function TasksPage() {
     description: string | null
     domain: string
     subdomain: string | null
-    target_year: number
     deadline: string | null
     requirements: string | null
     deliverables: string | null
@@ -53,7 +50,6 @@ export default function TasksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDomain, setSelectedDomain] = useState('')
   const [selectedSubdomain, setSelectedSubdomain] = useState('')
-  const [selectedYear, setSelectedYear] = useState('all')
   const [domainOpen, setDomainOpen] = useState(false)
   const [subdomainOpen, setSubdomainOpen] = useState(false)
 
@@ -122,9 +118,8 @@ export default function TasksPage() {
     
     const matchesDomain = selectedDomain === '' || task.domain === selectedDomain
     const matchesSubdomain = selectedSubdomain === '' || task.subdomain === selectedSubdomain
-    const matchesYear = selectedYear === '' || selectedYear === 'all' || task.target_year.toString() === selectedYear
-    
-    return matchesSearch && matchesDomain && matchesSubdomain && matchesYear
+
+    return matchesSearch && matchesDomain && matchesSubdomain
   })
 
   // Get available subdomains based on selected domain
@@ -135,7 +130,6 @@ export default function TasksPage() {
     setSearchTerm('')
     setSelectedDomain('')
     setSelectedSubdomain('')
-    setSelectedYear('all')
   }
 
 
@@ -315,22 +309,10 @@ export default function TasksPage() {
                 </Command>
               </PopoverContent>
             </Popover>
-
-            {/* Year Select */}
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Years" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                <SelectItem value="1">1st Year</SelectItem>
-                <SelectItem value="2">2nd Year</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Active Filters & Clear Button */}
-          {(searchTerm || selectedDomain || selectedSubdomain || (selectedYear && selectedYear !== 'all')) && (
+          {(searchTerm || selectedDomain || selectedSubdomain) && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">Active filters:</span>
               {searchTerm && (
@@ -352,12 +334,6 @@ export default function TasksPage() {
                 <Badge variant="secondary" className="gap-1">
                   Subdomain: {selectedSubdomain}
                   <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedSubdomain('')} />
-                </Badge>
-              )}
-              {selectedYear && selectedYear !== 'all' && (
-                <Badge variant="secondary" className="gap-1">
-                  Year: {selectedYear === '1' ? '1st' : '2nd'} Year
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedYear('all')} />
                 </Badge>
               )}
               <Button variant="outline" size="sm" onClick={clearFilters}>
@@ -510,10 +486,6 @@ export default function TasksPage() {
                           <span><strong>Subdomain:</strong> {task.subdomain}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Users className="h-4 w-4" />
-                        <span><strong>Target Year:</strong> {task.target_year === 1 ? '1st' : '2nd'} Year</span>
-                      </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
                         <span><strong>Deadline:</strong> {new Date(task.deadline || '').toLocaleDateString()}</span>
