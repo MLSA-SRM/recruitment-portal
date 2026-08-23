@@ -14,16 +14,17 @@ export const DOMAIN_SUBDOMAINS = {
     'AI/ML'
   ],
   Corporate: [
-    'Sponsorships & Partnerships',
+    'Sponsorship',
     'Event Management & Logistics',
+    'Operations',
     'PR & Outreach',
-    'Team Operations',
     'Content Writing'
   ],
   Creatives: [
     'Graphic Design',
-    'Video Editing & Motion Graphics',
-    'UI/UX Design'
+    'Photography',
+    'UI/UX Design',
+    'Videography'
   ]
 }
 
@@ -46,4 +47,17 @@ export function getDomainForSubdomain(subdomain: string): Domain | null {
     }
   }
   return null
+}
+
+// One color per domain (not per subdomain) so tasks are visually distinguishable at a glance
+export const DOMAIN_COLORS: Record<string, { badge: string; border: string; text: string; dot: string; soft: string }> = {
+  Technical: { badge: 'bg-blue-100 text-blue-700 hover:bg-blue-200', border: 'border-l-blue-500', text: 'text-blue-700', dot: 'bg-blue-500', soft: 'bg-blue-50 border-blue-200' },
+  Corporate: { badge: 'bg-amber-100 text-amber-700 hover:bg-amber-200', border: 'border-l-amber-500', text: 'text-amber-700', dot: 'bg-amber-500', soft: 'bg-amber-50 border-amber-200' },
+  Creatives: { badge: 'bg-pink-100 text-pink-700 hover:bg-pink-200', border: 'border-l-pink-500', text: 'text-pink-700', dot: 'bg-pink-500', soft: 'bg-pink-50 border-pink-200' },
+}
+
+const DEFAULT_DOMAIN_COLOR = { badge: 'bg-gray-100 text-gray-700 hover:bg-gray-200', border: 'border-l-gray-400', text: 'text-gray-700', dot: 'bg-gray-400', soft: 'bg-gray-50 border-gray-200' }
+
+export function getDomainColor(domain: string) {
+  return DOMAIN_COLORS[domain] ?? DEFAULT_DOMAIN_COLOR
 }

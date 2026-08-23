@@ -4,10 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import React from 'react'
-import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User, MessageCircle } from 'lucide-react'
+import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User, MessageCircle, Circle } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
 import { formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
-import { WHATSAPP_GROUP_URL } from '@/lib/constants'
+import { WHATSAPP_GROUP_URL, DOMAIN_SUBDOMAINS, getDomainColor, type Domain } from '@/lib/constants'
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServer()
@@ -117,6 +117,22 @@ export default async function DashboardPage() {
 
   const typedSubmissions = submissions as SubmissionWithTask[]
 
+  // Which domains the applicant is interested in (supports legacy single-value profiles too)
+  const interestedDomains: string[] = profile.domains && profile.domains.length > 0
+    ? profile.domains
+    : (profile.domain ? [profile.domain] : [])
+  const interestedSubdomains: string[] = profile.subdomains && profile.subdomains.length > 0
+    ? profile.subdomains
+    : (profile.subdomain ? [profile.subdomain] : [])
+
+  const submittedDomains = new Set(
+    (typedSubmissions || []).map((s) => {
+      const rawTask = s.tasks as unknown
+      const t = Array.isArray(rawTask) ? rawTask[0] : rawTask
+      return (t as { domain?: string } | null)?.domain
+    }).filter(Boolean)
+  )
+
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
       <Card>
@@ -130,6 +146,60 @@ export default async function DashboardPage() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {interestedDomains.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-lg">
+              <Target className="h-5 w-5 text-primary" />
+              <span>Your Domains</span>
+            </CardTitle>
+            <CardDescription>
+              You need at least one submission per domain you&apos;re interested in. Pick any of your subdomains within that domain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {interestedDomains.map((domain) => {
+              const color = getDomainColor(domain)
+              const subdomainsInDomain = DOMAIN_SUBDOMAINS[domain as Domain] || []
+              const mySubdomainsHere = interestedSubdomains.filter((s) => subdomainsInDomain.includes(s))
+              const hasSubmittedThisDomain = submittedDomains.has(domain)
+
+              return (
+                <div key={domain} className={`rounded-lg border p-4 space-y-3 ${color.soft}`}>
+                  <div className="flex items-center justify-between">
+                    <Badge className={`${color.badge} font-semibold`}>{domain}</Badge>
+                    {hasSubmittedThisDomain ? (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700">
+                        <CheckCircle className="h-3 w-3" />
+                        Submitted
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-gray-100 text-gray-600">
+                        <Circle className="h-3 w-3" />
+                        Not yet
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mySubdomainsHere.map((sub) => (
+                      <Badge key={sub} variant="outline" className="text-xs bg-white/70">{sub}</Badge>
+                    ))}
+                  </div>
+                  {!hasSubmittedThisDomain && (
+                    <Link href="/apply">
+                      <Button size="sm" variant="outline" className="w-full bg-white/70 hover:bg-white">
+                        <Target className="h-3.5 w-3.5 mr-1.5" />
+                        Browse {domain} Tasks
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {typedSubmissions && typedSubmissions.length > 0 ? (
         <div className="space-y-4">

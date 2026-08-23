@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye, ExternalLink, Users, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import ImageLightbox from '@/components/image-lightbox'
+import { getDomainColor } from '@/lib/constants'
 
 interface Task {
   id: number
@@ -228,8 +229,10 @@ export default function TaskCard({ task }: TaskCardProps) {
     return null
   }
 
+  const domainColor = getDomainColor(task.domain)
+
   return (
-    <Card className="group h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+    <Card className={`group h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 ${domainColor.border}`}>
       {/* Image Section */}
       {task.image_url && (
         <div className="relative overflow-hidden">
@@ -274,7 +277,7 @@ export default function TaskCard({ task }: TaskCardProps) {
         {/* Tags Section */}
         <div className="flex flex-wrap gap-2">
           {task.domain && (
-            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+            <Badge variant="secondary" className={`px-3 py-1 text-xs font-medium transition-colors ${domainColor.badge}`}>
               <Target className="h-3 w-3 mr-1" />
               {task.domain}
             </Badge>

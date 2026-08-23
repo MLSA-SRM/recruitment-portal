@@ -9,6 +9,7 @@ import { PaginationControls } from '@/components/pagination-controls'
 import { SubmissionsTable } from '@/components/submissions-table'
 import { requireAdmin } from '@/lib/require-admin'
 import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
+import { DOMAIN_SUBDOMAINS } from '@/lib/constants'
 import {
   Users,
   FileText,
@@ -414,23 +415,15 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
             <DropdownMenuLabel>Filter by Subdomain</DropdownMenuLabel>
             <DropdownMenuItem asChild><Link href={hrefWith('subdomain')}>Any</Link></DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-gray-500">Technical</DropdownMenuLabel>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Web Development: Frontend')}>Web Development: Frontend</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Web Development: Backend')}>Web Development: Backend</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'AI/ML')}>AI/ML</Link></DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-gray-500">Corporate</DropdownMenuLabel>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Sponsorships & Partnerships')}>Sponsorships & Partnerships</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Event Management & Logistics')}>Event Management & Logistics</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'PR & Outreach')}>PR & Outreach</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Team Operations')}>Team Operations</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Content Writing')}>Content Writing</Link></DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-gray-500">Creatives</DropdownMenuLabel>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Graphic Design')}>Graphic Design</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'Video Editing & Motion Graphics')}>Video Editing & Motion Graphics</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link href={hrefWith('subdomain', 'UI/UX Design')}>UI/UX Design</Link></DropdownMenuItem>
+            {Object.entries(DOMAIN_SUBDOMAINS).map(([domain, subdomains]) => (
+              <div key={domain}>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-gray-500">{domain}</DropdownMenuLabel>
+                {subdomains.map((sub) => (
+                  <DropdownMenuItem key={sub} asChild><Link href={hrefWith('subdomain', sub)}>{sub}</Link></DropdownMenuItem>
+                ))}
+              </div>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
