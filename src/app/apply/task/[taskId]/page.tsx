@@ -471,6 +471,27 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                   </div>
                 </div>
 
+                {/* Technical domain guide */}
+                {task.domain === 'Technical' && (
+                  <a
+                    href="/docs/technical-tasks-guide.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 transition-colors hover:bg-blue-100"
+                  >
+                    <div className="rounded-lg bg-blue-100 p-2">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">Technical Tasks Guide (PDF)</p>
+                      <p className="text-sm text-gray-600">
+                        How to submit, what we look for, and the resources for every Technical task.
+                      </p>
+                    </div>
+                    <ExternalLink className="ml-auto h-4 w-4 shrink-0 text-blue-600" />
+                  </a>
+                )}
+
                 {/* Requirements */}
                 {task.requirements && (
                   <div className="space-y-4">

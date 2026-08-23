@@ -122,7 +122,8 @@ dist
 
 # Gatsby files
 .cache/
-public
+# NOTE: Gatsby builds into public/, but in Next.js public/ is source (logo,
+# icons, the task guide PDF) and must be committed, so it is not ignored here.
 
 # Vuepress build output
 .vuepress/dist

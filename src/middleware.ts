@@ -140,12 +140,20 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - static assets served from /public by extension (the task guide PDF,
+     *   the logo, icons). These must stay reachable without a session so a
+     *   link shared in the WhatsApp group opens for someone who isn't logged
+     *   in, instead of bouncing them to /auth/signin.
+     *
+     * This cannot expose a protected route: every guarded path is matched by
+     * prefix (/dashboard, /apply, /admin, /profile) and none of them end in a
+     * file extension, so a request like /admin/x.pdf simply 404s in routing.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|.*\\.(?:pdf|docx|svg|png|jpg|jpeg|gif|webp|ico|txt|xml|webmanifest)$).*)',
   ],
 }
