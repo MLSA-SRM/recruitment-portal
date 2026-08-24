@@ -3,10 +3,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { env } from '@/env'
 
-// Cache for user sessions to reduce database calls
-const sessionCache = new Map<string, { user: unknown; profile: unknown; onboardingComplete: boolean; timestamp: number }>()
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
-
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
@@ -72,51 +68,25 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 
-  // Check cache for user onboarding status
-  const cacheKey = user.id
-  const cached = sessionCache.get(cacheKey)
-  const now = Date.now()
-  
-  let onboardingComplete = false
-  let profile = null
-  
-  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    // Use cached data
-    onboardingComplete = cached.onboardingComplete
-    profile = cached.profile
-  } else {
-    // Fetch fresh onboarding status and profile
-    const { data: authCheckData } = await supabase
-      .from('auth_check')
-      .select('is_onboarding_complete')
-      .eq('user_id', user.id)
-      .single()
-    
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    onboardingComplete = authCheckData?.is_onboarding_complete || false
-    profile = profileData
-    
-    // Update cache
-    sessionCache.set(cacheKey, {
-      user,
-      profile,
-      onboardingComplete,
-      timestamp: now
-    })
-    
-    // Clean up old cache entries
-    if (sessionCache.size > 100) {
-      const oldestKey = sessionCache.keys().next().value
-      if (oldestKey) {
-        sessionCache.delete(oldestKey)
-      }
-    }
-  }
+  // Always read live: this runs in Edge middleware, spread across many
+  // concurrent short-lived isolates. An in-memory cache here previously
+  // served a stale "onboarding not complete" result for up to 5 minutes
+  // after someone actually finished setup, bouncing them back to
+  // /profile/setup on /apply and /dashboard even though the database
+  // already had them marked done.
+  const { data: authCheckData } = await supabase
+    .from('auth_check')
+    .select('is_onboarding_complete')
+    .eq('user_id', user.id)
+    .single()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  const onboardingComplete = authCheckData?.is_onboarding_complete || false
 
   // Routes that require completed onboarding
   const onboardingRequiredRoutes = ['/dashboard', '/apply']

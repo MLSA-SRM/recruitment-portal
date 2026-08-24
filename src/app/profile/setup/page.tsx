@@ -129,7 +129,7 @@ export default function ProfileSetupPage() {
       if (error) {
         // Handle specific error cases with user-friendly messages
         if (error.code === '23505' && error.message.includes('profiles_ra_number_key')) {
-          setMessage('RA Number already exists. Please use a different RA Number.')
+          setMessage('This RA Number is already registered under a different account. Double-check you typed it correctly. If it is genuinely yours and you believe you already registered, contact an admin in the WhatsApp group instead of retrying — do not use someone else’s RA Number to get past this.')
           setMessageType('error')
         } else {
           setMessage(error.message)
