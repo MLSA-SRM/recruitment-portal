@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { isAllowedSignInEmail } from '@/lib/constants'
+import { isAllowedSignInEmail, WHATSAPP_GROUP_URL } from '@/lib/constants'
 
 type ResetStep = 'email' | 'otp' | 'password'
 
@@ -267,6 +267,13 @@ export default function ForgotPasswordPage() {
               <Button type="submit" disabled={loading || otp.length !== 8} className="w-full">
                 {loading ? 'Verifying…' : 'Verify code'}
               </Button>
+              <p className="text-center text-sm text-gray-500">
+                Not arriving, even in spam?{' '}
+                <a href={WHATSAPP_GROUP_URL} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                  Ask an admin in the WhatsApp group
+                </a>{' '}
+                to reset it for you directly.
+              </p>
             </form>
           )}
 
