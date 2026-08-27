@@ -6,7 +6,7 @@ import Link from 'next/link'
 import React from 'react'
 import { Edit, Clock, AlertCircle, Calendar, CheckCircle, FileText, Target, Users, Eye, User, MessageCircle, Circle } from 'lucide-react'
 import { SubmissionWithTask } from '@/lib/types'
-import { formatDateForDisplay, isDeadlinePassed } from '@/lib/date-utils'
+import { formatDeadlineForDisplay, isDeadlinePassed } from '@/lib/date-utils'
 import { WHATSAPP_GROUP_URL, DOMAIN_SUBDOMAINS, getDomainColor, type Domain } from '@/lib/constants'
 
 export default async function DashboardPage() {
@@ -174,12 +174,12 @@ export default async function DashboardPage() {
                         <CheckCircle className="h-3 w-3" />
                         Submitted
                       </Badge>
-                    ) : (
+                    ) : mySubdomainsHere.length > 0 ? (
                       <Badge variant="secondary" className="flex items-center gap-1 bg-gray-100 text-gray-600">
                         <Circle className="h-3 w-3" />
                         Not yet
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {mySubdomainsHere.map((sub) => (
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
                           <div>
                             <div className="text-xs text-muted-foreground">Deadline</div>
                             <div className="text-sm font-medium text-foreground">
-                              {formatDateForDisplay(task.deadline)}
+                              {formatDeadlineForDisplay(task.deadline)}
                               {deadlinePassed ? (
                                 <Badge variant="destructive" className="ml-2 text-xs">Passed</Badge>
                               ) : (

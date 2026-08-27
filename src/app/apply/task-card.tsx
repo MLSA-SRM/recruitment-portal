@@ -9,6 +9,7 @@ import { Calendar, Clock, CheckCircle, AlertCircle, Edit, Eye, ExternalLink, Tar
 import { toast } from 'sonner'
 import ImageLightbox from '@/components/image-lightbox'
 import { getDomainColor } from '@/lib/constants'
+import { formatDeadlineForDisplay } from '@/lib/date-utils'
 
 interface Task {
   id: number
@@ -289,7 +290,7 @@ export default function TaskCard({ task }: TaskCardProps) {
               <div className="flex items-center text-muted-foreground">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground/70" />
                 <span className="font-medium">Deadline:</span>
-                <span className="ml-1 font-mono text-xs">{deadlineDate.toLocaleDateString()}</span>
+                <span className="ml-1 font-mono text-xs">{formatDeadlineForDisplay(task.deadline)}</span>
               </div>
             )}
             {deadlineDate && relativeDeadline && (

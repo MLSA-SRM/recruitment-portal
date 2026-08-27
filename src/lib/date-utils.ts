@@ -66,6 +66,19 @@ export function formatDateForDisplay(
 }
 
 /**
+ * Formats a deadline for display, including the end-of-day time.
+ * Deadlines are always treated as end of day (23:59), so this always
+ * appends "11:59 PM" rather than the exact stored time.
+ * @param dateString - ISO date string
+ * @returns Formatted deadline string, e.g. "Aug 27, 2026, 11:59 PM"
+ */
+export function formatDeadlineForDisplay(dateString: string): string {
+  if (!dateString) return ''
+
+  return `${formatDateForDisplay(dateString)}, 11:59 PM`
+}
+
+/**
  * Checks if a deadline has passed (comparing with current time)
  * @param deadline - Deadline string
  * @returns true if deadline has passed

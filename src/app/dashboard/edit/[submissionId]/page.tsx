@@ -12,6 +12,7 @@ import { ArrowLeft, AlertCircle, Clock, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { redirectWithRefresh } from '@/lib/redirect-utils'
 import { toast } from 'sonner'
+import { formatDeadlineForDisplay } from '@/lib/date-utils'
 
 interface SubmissionField {
   id: number
@@ -408,7 +409,7 @@ export default function EditSubmissionPage() {
               </div>
             )}
             <div>
-              <strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}
+              <strong>Deadline:</strong> {task.deadline ? formatDeadlineForDisplay(task.deadline) : 'No deadline'}
             </div>
             <div>
               <strong>Status:</strong> 

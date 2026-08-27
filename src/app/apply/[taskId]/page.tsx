@@ -17,6 +17,7 @@ import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
 import MarkdownRenderer from '@/components/markdown-renderer'
 import { redirectWithRefresh } from '@/lib/redirect-utils'
+import { formatDeadlineForDisplay } from '@/lib/date-utils'
 
 interface Task {
   id: number
@@ -215,7 +216,7 @@ export default function ApplyPage({ params }: { params: Promise<{ taskId: string
               <div className="flex items-center space-x-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">
-                  Deadline: {deadlineDate ? deadlineDate.toLocaleDateString() : 'No deadline set'}
+                  Deadline: {task.deadline ? formatDeadlineForDisplay(task.deadline) : 'No deadline set'}
                 </span>
               </div>
               

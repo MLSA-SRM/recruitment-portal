@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
 import MarkdownRenderer from '@/components/markdown-renderer'
+import { formatDeadlineForDisplay } from '@/lib/date-utils'
 
 interface Task {
   id: number
@@ -417,7 +418,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                     {deadlineDate && (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-500" />
-                        <span>Due {deadlineDate.toLocaleDateString()}</span>
+                        <span>Due {formatDeadlineForDisplay(task.deadline)}</span>
                       </div>
                     )}
                     {deadlineDate && (
@@ -572,7 +573,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
                             </div>
                             <span className="text-sm font-medium text-orange-700 uppercase tracking-wide">Deadline</span>
                           </div>
-                          <p className="text-lg font-semibold text-gray-900">{deadlineDate.toLocaleDateString()}</p>
+                          <p className="text-lg font-semibold text-gray-900">{formatDeadlineForDisplay(task.deadline)}</p>
                         </div>
                       )}
 
