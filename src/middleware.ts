@@ -68,40 +68,34 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 
-  // Always read live: this runs in Edge middleware, spread across many
-  // concurrent short-lived isolates. An in-memory cache here previously
-  // served a stale "onboarding not complete" result for up to 5 minutes
-  // after someone actually finished setup, bouncing them back to
-  // /profile/setup on /apply and /dashboard even though the database
-  // already had them marked done.
-  const { data: authCheckData } = await supabase
-    .from('auth_check')
-    .select('is_onboarding_complete')
-    .eq('user_id', user.id)
-    .single()
+  // Admin routes require admin privileges. This is the only check left here
+  // that needs a database read, and it runs only for /admin/* — a handful of
+  // people — so it stays off the hot path that students are on.
+  //
+  // It cannot be dropped: of the nine pages under /admin, only four are server
+  // components calling requireAdmin(). The other five are client components
+  // with no server-side guard of their own, so this middleware check is what
+  // actually protects them.
+  //
+  // The onboarding check that used to live here was removed. It ran an
+  // auth_check query on every authenticated request, and /apply and /dashboard
+  // each already query auth_check themselves and render a "Profile Setup
+  // Required" card — so it was a duplicate round-trip on the two hottest
+  // routes. Combined with a profiles select('*'), every request made three
+  // sequential network calls; under deadline-night traffic that exhausted the
+  // connection pool and tripped MIDDLEWARE_INVOCATION_TIMEOUT (504) sitewide.
+  const requiresAdmin = req.nextUrl.pathname.startsWith('/admin')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  if (requiresAdmin) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
 
-  const onboardingComplete = authCheckData?.is_onboarding_complete || false
-
-  // Routes that require completed onboarding
-  const onboardingRequiredRoutes = ['/dashboard', '/apply']
-  const requiresOnboarding = onboardingRequiredRoutes.some(route => req.nextUrl.pathname.startsWith(route))
-
-  if (requiresOnboarding && !onboardingComplete) {
-    return NextResponse.redirect(new URL('/profile/setup', req.url))
-  }
-
-  // Admin routes require admin privileges
-  const adminRoutes = ['/admin']
-  const requiresAdmin = adminRoutes.some(route => req.nextUrl.pathname.startsWith(route))
-
-  if (requiresAdmin && !(profile && profile.is_admin === true)) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    if (!profile?.is_admin) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
   }
 
   return res
