@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { use } from 'react'
 import ImageLightbox from '@/components/image-lightbox'
 import MarkdownRenderer from '@/components/markdown-renderer'
-import { formatDeadlineForDisplay } from '@/lib/date-utils'
+import { formatDeadlineForDisplay, getDeadlineInstant } from '@/lib/date-utils'
 
 interface Task {
   id: number
@@ -200,12 +200,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     }
   }
 
-  function normalizeDeadlineToEndOfDay(dateLike: string): Date {
-    const base = new Date(dateLike)
-    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
-  }
-
-  const deadlineDate = task?.deadline ? normalizeDeadlineToEndOfDay(task.deadline) : null
+  const deadlineDate = task?.deadline ? getDeadlineInstant(task.deadline) : null
   const isDeadlinePassed = deadlineDate ? deadlineDate < new Date() : false
 
   // Only keep "Due in x days" logic, remove duration logic

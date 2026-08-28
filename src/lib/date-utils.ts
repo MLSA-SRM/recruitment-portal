@@ -33,49 +33,71 @@ export function toStartOfDayUTC(dateString: string): string {
 }
 
 /**
- * Normalizes a deadline to end of day for consistent comparison
- * @param deadline - Deadline string from database
- * @returns Date object set to end of day in local timezone
+ * The timezone deadlines are defined in. Recruitment is run out of SRM in
+ * India, so deadlines mean a wall-clock time in IST regardless of where the
+ * viewer (or the server) happens to be. Formatting explicitly in IST keeps
+ * server-rendered pages (Vercel runs in UTC) and client-rendered pages (the
+ * student's own timezone) showing the same date and time.
  */
-export function normalizeDeadlineToEndOfDay(deadline: string): Date {
+export const DEADLINE_TIME_ZONE = 'Asia/Kolkata'
+
+/**
+ * Returns the exact instant a deadline falls at.
+ *
+ * This previously discarded the stored time and forced 23:59:59.999 in the
+ * viewer's local timezone. That silently broke any deadline that isn't end of
+ * day: a 29 Aug 4:59 AM IST cutoff would have been treated as 29 Aug 11:59 PM
+ * IST, staying open ~19 hours too long. The server-side submission gate in
+ * canSubmitToTask() always compared exact instants, so the two disagreed.
+ *
+ * @param deadline - Deadline string from database
+ * @returns Date object for that exact instant
+ */
+export function getDeadlineInstant(deadline: string): Date {
   if (!deadline) return new Date()
-  
-  const base = new Date(deadline)
-  // Set to end of day in local timezone for consistent comparison
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999)
+
+  return new Date(deadline)
 }
 
 /**
- * Formats a date for display in the user's local timezone
+ * Formats a date for display in IST
  * @param dateString - ISO date string
  * @param options - Intl.DateTimeFormatOptions
  * @returns Formatted date string
  */
 export function formatDateForDisplay(
-  dateString: string, 
-  options: Intl.DateTimeFormatOptions = { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
+  dateString: string,
+  options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   }
 ): string {
   if (!dateString) return ''
-  
+
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', options)
+  return date.toLocaleDateString('en-US', { timeZone: DEADLINE_TIME_ZONE, ...options })
 }
 
 /**
- * Formats a deadline for display, including the end-of-day time.
- * Deadlines are always treated as end of day (23:59), so this always
- * appends "11:59 PM" rather than the exact stored time.
+ * Formats a deadline for display, showing its actual date and time in IST.
  * @param dateString - ISO date string
- * @returns Formatted deadline string, e.g. "Aug 27, 2026, 11:59 PM"
+ * @returns Formatted deadline string, e.g. "Aug 29, 2026, 4:59 AM IST"
  */
 export function formatDeadlineForDisplay(dateString: string): string {
   if (!dateString) return ''
 
-  return `${formatDateForDisplay(dateString)}, 11:59 PM`
+  const formatted = new Date(dateString).toLocaleString('en-US', {
+    timeZone: DEADLINE_TIME_ZONE,
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  return `${formatted} IST`
 }
 
 /**
@@ -85,10 +107,10 @@ export function formatDeadlineForDisplay(dateString: string): string {
  */
 export function isDeadlinePassed(deadline: string): boolean {
   if (!deadline) return false
-  
+
   const now = new Date()
-  const deadlineDate = normalizeDeadlineToEndOfDay(deadline)
-  
+  const deadlineDate = getDeadlineInstant(deadline)
+
   return deadlineDate < now
 }
 
