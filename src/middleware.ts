@@ -113,20 +113,36 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - static assets served from /public by extension (the task guide PDF,
-     *   the logo, icons). These must stay reachable without a session so a
-     *   link shared in the WhatsApp group opens for someone who isn't logged
-     *   in, instead of bouncing them to /auth/signin.
+     * Only /admin/* runs through middleware.
      *
-     * This cannot expose a protected route: every guarded path is matched by
-     * prefix (/dashboard, /apply, /admin, /profile) and none of them end in a
-     * file extension, so a request like /admin/x.pdf simply 404s in routing.
+     * Middleware previously ran on nearly every request, and each authenticated
+     * one made a getUser() round-trip to the Supabase Auth API. That call is the
+     * thing that times out: at ~2.9K invocations against a hot /api route called
+     * once per task card, the auth API becomes the bottleneck and middleware
+     * exceeds its execution limit, producing intermittent sitewide 504s
+     * (MIDDLEWARE_INVOCATION_TIMEOUT) whenever traffic climbs.
+     *
+     * Narrowing to /admin/* is safe because middleware is not the only guard —
+     * it is the only guard for exactly one thing. Verified route by route:
+     *   /apply, /dashboard  - server components that check getUser() themselves
+     *                         and render "Authentication Required", then check
+     *                         auth_check for onboarding
+     *   /profile/setup      - checks getUser() and redirects to sign-in
+     *   /api/submission-status      - canSubmitToTask() returns canSubmit:false
+     *                                 when there is no session
+     *   /api/tasks/[taskId]         - PUT verifies is_admin; GET returns task
+     *                                 rows that are already anon-readable
+     *   /api/submissions/[id]/trigger-ai - triggerAIReviewForSubmission()
+     *                                 throws without a session and requires the
+     *                                 submission's owner or an admin
+     *   /admin/*            - only four of nine pages call requireAdmin(); the
+     *                         other five are client components with no
+     *                         server-side guard, so this matcher is what
+     *                         actually protects them. Hence /admin stays.
+     *
+     * Static assets stop passing through middleware for free under this rule,
+     * so the task guide PDF and logo remain reachable without a session.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public|.*\\.(?:pdf|docx|svg|png|jpg|jpeg|gif|webp|ico|txt|xml|webmanifest)$).*)',
+    '/admin/:path*',
   ],
 }
