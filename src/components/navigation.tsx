@@ -31,34 +31,58 @@ export function Navigation() {
       const supabase = createSupabaseClient()
   
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        setProfile(profile)
+    let cancelled = false
+
+    const loadSession = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (cancelled) return
+        setUser(user)
+
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          if (cancelled) return
+          setProfile(profileData)
+        } else {
+          setProfile(null)
+        }
+      } catch (error) {
+        // supabase.auth.getUser() rethrows non-auth failures (network errors,
+        // timeouts, rate limiting). Without this catch the finally below never
+        // ran, so `loading` stayed true forever and the navbar was stuck on its
+        // grey skeleton — no name, no Sign Out, and no Sign In either, because
+        // the component never left its loading branch. Falling back to the
+        // signed-out state is recoverable: the user can click Sign In and, if
+        // their session is still valid, land straight back where they were.
+        console.error('Navigation: could not load session', error)
+        if (!cancelled) {
+          setUser(null)
+          setProfile(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      
-      setLoading(false)
     }
-    
-    getUser()
-    
+
+    loadSession()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        getUser()
+        loadSession()
       } else {
         setProfile(null)
       }
     })
-    
-    return () => subscription.unsubscribe()
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [supabase])
   
   const handleSignOut = async () => {
