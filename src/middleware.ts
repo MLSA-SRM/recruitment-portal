@@ -49,19 +49,28 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Get user with caching
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Public routes that don't require authentication
+  // Public routes are decided purely from the path, BEFORE any network call.
+  //
+  // getUser() used to run first, on every single request. It is a round-trip to
+  // the Supabase Auth API, so loading /auth/signin — a page whose whole point is
+  // that the visitor is not signed in yet — blocked on an auth lookup that could
+  // never return anything useful. Under load those calls queue up and middleware
+  // exceeds its execution limit, producing intermittent sitewide 504s
+  // (MIDDLEWARE_INVOCATION_TIMEOUT) that come and go with traffic.
+  //
+  // Sign-in traffic is the heaviest thing hitting this app during recruitment,
+  // so keeping it network-free in middleware matters most exactly when the site
+  // is busiest.
   const publicRoutes = ['/auth/signin', '/auth/signup', '/auth/callback', '/auth/auth-code-error', '/auth/forgot-password', '/auth/update-password', '/auth/confirm', '/auth/verify-otp', '/auth/verify-signup-otp']
   const isPublicRoute = req.nextUrl.pathname === '/' || publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
-  // If it's a public route, allow access
   if (isPublicRoute) {
     return res
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // If user is not authenticated, redirect to signin
   if (!user) {
