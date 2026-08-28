@@ -33,31 +33,36 @@ export function Navigation() {
   useEffect(() => {
     let cancelled = false
 
-    const loadSession = async () => {
+    const loadProfile = async (userId: string) => {
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+        if (!cancelled) setProfile(profileData)
+      } catch (error) {
+        console.error('Navigation: could not load profile', error)
+        if (!cancelled) setProfile(null)
+      }
+    }
+
+    const init = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (cancelled) return
         setUser(user)
 
         if (user) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single()
-          if (cancelled) return
-          setProfile(profileData)
+          await loadProfile(user.id)
         } else {
           setProfile(null)
         }
       } catch (error) {
-        // supabase.auth.getUser() rethrows non-auth failures (network errors,
-        // timeouts, rate limiting). Without this catch the finally below never
-        // ran, so `loading` stayed true forever and the navbar was stuck on its
-        // grey skeleton — no name, no Sign Out, and no Sign In either, because
-        // the component never left its loading branch. Falling back to the
-        // signed-out state is recoverable: the user can click Sign In and, if
-        // their session is still valid, land straight back where they were.
+        // getUser() rethrows non-auth failures (network errors, timeouts, rate
+        // limiting). Without this catch the finally below never ran, `loading`
+        // stayed true forever, and the navbar sat on its grey skeleton with no
+        // name, no Sign Out, and no Sign In.
         console.error('Navigation: could not load session', error)
         if (!cancelled) {
           setUser(null)
@@ -68,12 +73,30 @@ export function Navigation() {
       }
     }
 
-    loadSession()
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadSession()
+      // Never call supabase.auth.* inside this callback, and never make it async.
+      // supabase-js holds an internal lock while dispatching auth events, so an
+      // auth call here waits on a lock the dispatch itself is holding. That
+      // deadlock hangs every in-flight auth request: because this navbar renders
+      // on every page including /auth/signin, signInWithPassword and the
+      // password-reset OTP call would never resolve, leaving their buttons
+      // spinning forever with no error — nothing had actually failed.
+      //
+      // The session handed to this callback already contains the user, so no
+      // auth round-trip is needed. The profile read is a plain table query, but
+      // it is still deferred to a macrotask so it runs after the lock is released.
+      if (cancelled) return
+
+      const nextUser = session?.user ?? null
+      setUser(nextUser)
+      setLoading(false)
+
+      if (nextUser) {
+        setTimeout(() => {
+          if (!cancelled) loadProfile(nextUser.id)
+        }, 0)
       } else {
         setProfile(null)
       }
