@@ -106,6 +106,7 @@ export default async function DashboardPage() {
       id,
       submission_url,
       status,
+      result_released,
       ai_score,
       ai_review,
       created_at,
@@ -206,7 +207,7 @@ export default async function DashboardPage() {
           {typedSubmissions.map((submission) => {
             // Normalize task relation (can be object or single-item array depending on PostgREST)
             const rawTask = submission.tasks as unknown
-            const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; deadline?: string }) | null)
+            const task = Array.isArray(rawTask) ? rawTask[0] : (rawTask as (typeof submission.tasks extends Array<infer T> ? T : { title?: string; domain?: string; subdomain?: string; deadline?: string }))
             const deadlinePassed = task?.deadline ? isDeadlinePassed(task.deadline) : false
             const canEdit = submission.status === 'pending' && !deadlinePassed
             
@@ -234,17 +235,8 @@ export default async function DashboardPage() {
                         </Link>
                       ) : (
                         <Badge variant="secondary" className="flex items-center space-x-1">
-                          {submission.status === 'pending' ? (
-                            <>
-                              <Clock className="h-3 w-3" />
-                              <span>Pending</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-3 w-3" />
-                              <span>Reviewed</span>
-                            </>
-                          )}
+                          <Clock className="h-3 w-3" />
+                          <span>Pending</span>
                         </Badge>
                       )}
                     </div>
@@ -315,18 +307,13 @@ export default async function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Status Information */}
+                    {/* Status Information - Only show if result_released */}
                     <div className="flex items-center justify-between pt-2 border-t">
                       <div className="flex items-center gap-2">
                         {deadlinePassed ? (
                           <Badge variant="destructive" className="flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
                             <span>Deadline Passed</span>
-                          </Badge>
-                        ) : submission.status !== 'pending' ? (
-                          <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700">
-                            <CheckCircle className="h-3 w-3" />
-                            <span>Final Submission</span>
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700">

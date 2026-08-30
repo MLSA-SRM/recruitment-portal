@@ -48,6 +48,7 @@ export interface Submission {
   task_id: number
   applicant_id: string
   status: 'pending' | 'reviewed' | 'shortlisted' | 'rejected'
+  result_released: boolean
   feedback?: string
   score?: number
   submitted_at: string
@@ -59,6 +60,7 @@ export interface SubmissionWithTask {
   id: number
   submission_url?: string
   status: string
+  result_released?: boolean
   ai_score?: number
   ai_review?: string
   ai_recommendation?: 'shortlist' | 'reject'
