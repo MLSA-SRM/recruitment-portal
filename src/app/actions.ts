@@ -876,36 +876,123 @@ export async function bulkUpdateSubmissionStatus(submissionIds: number[], status
   return { ok: true, count: submissionIds.length }
 }
 
-export async function exportShortlistedCSV(): Promise<string> {
+export type ExportFilters = {
+  domain?: string
+  subdomain?: string
+  year?: string
+  status?: string
+  /** 'applicant' = one row per person. Anything else = one row per submission. */
+  group?: string
+}
+
+/**
+ * Exports submissions as CSV.
+ *
+ * Previously this ignored every dashboard filter (it took no arguments at all),
+ * and reported profiles.domain / profiles.subdomain — the applicant's legacy
+ * single-value preference fields, which are frequently stale or null — rather
+ * than the domain of the task actually submitted to. It also emitted one row
+ * per submission, so anyone shortlisted in three subdomains appeared three
+ * times with no way to tell it was one person.
+ */
+export async function exportShortlistedCSV(filters: ExportFilters = {}): Promise<string> {
   const supabase = await createSupabaseServer()
+
   const { data } = await supabase
     .from('submissions')
     .select(`
-      ai_score, 
-      status, 
-      profiles!submissions_applicant_id_fkey(name, ra_number, phone_number, department, branch, year, domain, subdomain), 
-      tasks!submissions_task_id_fkey(domain, subdomain)
+      id,
+      applicant_id,
+      ai_score,
+      status,
+      profiles!submissions_applicant_id_fkey(name, ra_number, phone_number, department, branch, year),
+      tasks!submissions_task_id_fkey(domain, subdomain, title)
     `)
-    .eq('status', 'shortlisted')
+    .eq('status', filters.status || 'shortlisted')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = (data || []).map((row: any) => ({
-    name: row.profiles?.name ?? '',
-    ranumber: row.profiles?.ra_number ?? '',
-    phone: row.profiles?.phone_number ?? '',
-    department: row.profiles?.department ?? '',
-    branch: row.profiles?.branch ?? '',
-    year: row.profiles?.year ?? '',
-    domain: row.profiles?.domain ?? '',
-    subdomain: row.profiles?.subdomain ?? '',
-    ai_score: row.ai_score ?? '',
-    status: row.status ?? ''
-  }))
-  
-  // Use dynamic import to avoid server-side execution issues
+  type Row = {
+    id: number
+    applicant_id: string
+    ai_score: number | null
+    status: string
+    profiles: { name: string | null; ra_number: string | null; phone_number: number | null; department: string | null; branch: string | null; year: number | null } | null
+    tasks: { domain: string; subdomain: string | null; title: string | null } | null
+  }
+
+  let rows = (data || []) as unknown as Row[]
+
+  // Domain and subdomain come from the TASK, which is the thing that was
+  // actually submitted to.
+  if (filters.domain) rows = rows.filter((r) => (r.tasks?.domain ?? '') === filters.domain)
+  if (filters.subdomain) rows = rows.filter((r) => (r.tasks?.subdomain ?? '') === filters.subdomain)
+  if (filters.year) rows = rows.filter((r) => String(r.profiles?.year ?? '') === String(filters.year))
+
+  // Email lives in auth.users, reachable through the admin-gated RPC.
+  const emailById = new Map<string, string>()
+  try {
+    const { data: users } = await supabase.rpc('admin_list_users')
+    for (const u of (users || []) as { id: string; email: string | null }[]) {
+      if (u.email) emailById.set(u.id, u.email)
+    }
+  } catch (e) {
+    console.warn('[export] could not resolve emails:', e)
+  }
+
   const Papa = (await import('papaparse')).default
-  const csv = Papa.unparse(rows)
-  return csv
+
+  if (filters.group === 'applicant') {
+    // One row per person. Subdomains, tasks and scores are collapsed so a
+    // three-submission applicant is a single line you can mail merge from.
+    const byApplicant = new Map<string, Row[]>()
+    for (const r of rows) {
+      const key = r.applicant_id ?? `submission-${r.id}`
+      if (!byApplicant.has(key)) byApplicant.set(key, [])
+      byApplicant.get(key)!.push(r)
+    }
+
+    const grouped = [...byApplicant.entries()].map(([applicantId, subs]) => {
+      const p = subs[0].profiles
+      const uniq = (xs: (string | null | undefined)[]) =>
+        [...new Set(xs.filter((x): x is string => !!x))].sort().join(', ')
+      const scores = subs.map((s) => s.ai_score).filter((s): s is number => typeof s === 'number')
+      return {
+        name: p?.name ?? '',
+        ranumber: p?.ra_number ?? '',
+        email: emailById.get(applicantId) ?? '',
+        phone: p?.phone_number ?? '',
+        department: p?.department ?? '',
+        branch: p?.branch ?? '',
+        year: p?.year ?? '',
+        domains: uniq(subs.map((s) => s.tasks?.domain)),
+        subdomains: uniq(subs.map((s) => s.tasks?.subdomain)),
+        tasks: uniq(subs.map((s) => s.tasks?.title)),
+        submissions: subs.length,
+        best_ai_score: scores.length ? Math.max(...scores) : '',
+        status: subs[0].status,
+      }
+    })
+
+    grouped.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    return Papa.unparse(grouped)
+  }
+
+  const flat = rows.map((r) => ({
+    name: r.profiles?.name ?? '',
+    ranumber: r.profiles?.ra_number ?? '',
+    email: emailById.get(r.applicant_id) ?? '',
+    phone: r.profiles?.phone_number ?? '',
+    department: r.profiles?.department ?? '',
+    branch: r.profiles?.branch ?? '',
+    year: r.profiles?.year ?? '',
+    domain: r.tasks?.domain ?? '',
+    subdomain: r.tasks?.subdomain ?? '',
+    task: r.tasks?.title ?? '',
+    ai_score: r.ai_score ?? '',
+    status: r.status ?? '',
+  }))
+
+  flat.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+  return Papa.unparse(flat)
 }
 
 const createTaskSchema = z.object({

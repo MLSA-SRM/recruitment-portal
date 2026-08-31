@@ -203,6 +203,20 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const shortlistedCount = aggregates.shortlisted
   const rejectedCount = aggregates.rejected
   
+  // Carry whatever the dashboard is filtered to through to the CSV export, so
+  // "Year 2 + Corporate" on screen exports Year 2 + Corporate rather than
+  // every shortlisted submission in the database.
+  function exportHref(group?: 'applicant') {
+    const params = new URLSearchParams()
+    if (resolvedSearchParams.domain) params.set('domain', resolvedSearchParams.domain)
+    if (resolvedSearchParams.subdomain) params.set('subdomain', resolvedSearchParams.subdomain)
+    if (resolvedSearchParams.year) params.set('year', resolvedSearchParams.year)
+    if (resolvedSearchParams.status) params.set('status', resolvedSearchParams.status)
+    if (group) params.set('group', group)
+    const qs = params.toString()
+    return `/admin/export${qs ? `?${qs}` : ''}`
+  }
+
   function hrefWith(key: string, value?: string) {
     const params = new URLSearchParams()
     if (resolvedSearchParams.q && key !== 'q') params.set('q', resolvedSearchParams.q)
@@ -233,14 +247,26 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
               Create Task
             </Button>
           </Link>
-          <Link href="/admin/export">
+          <Link href={exportHref('applicant')}>
             <Button variant="outline" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Export CSV
             </Button>
           </Link>
+          <Link href={exportHref()}>
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
+              Per submission
+            </Button>
+          </Link>
         </div>
       </div>
+
+      {(resolvedSearchParams.domain || resolvedSearchParams.subdomain || resolvedSearchParams.year || resolvedSearchParams.status) && (
+        <p className="text-sm text-muted-foreground -mt-2">
+          Export will apply the filters currently set above
+          {resolvedSearchParams.status ? ` (status: ${resolvedSearchParams.status})` : ' (status: shortlisted)'}.
+        </p>
+      )}
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
