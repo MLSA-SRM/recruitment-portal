@@ -46,6 +46,14 @@ type SubmissionAggregates = {
   shortlisted: number
   rejected: number
   averageScore: number
+  /**
+   * Distinct people behind the counts above. One applicant shortlisted in four
+   * subdomains is 4 submissions but 1 person, and the CSV export groups by
+   * person, so showing only the submission count made the dashboard and the
+   * export look like they disagreed.
+   */
+  uniqueShortlistedApplicants: number
+  uniqueApplicants: number
 }
 
 async function getSubmissions(filters: Filters): Promise<{ submissions: SubmissionWithJoins[], total: number, page: number, totalPages: number, aggregates: SubmissionAggregates }> {
@@ -106,7 +114,7 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
 
   if (error) {
     console.error('Error fetching submissions:', error)
-    return { submissions: [], total: 0, page: 1, totalPages: 0, aggregates: { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0 } }
+    return { submissions: [], total: 0, page: 1, totalPages: 0, aggregates: { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0, uniqueShortlistedApplicants: 0, uniqueApplicants: 0 } }
   }
 
   let rows = (data || []) as unknown as SubmissionWithJoins[]
@@ -130,18 +138,27 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
   }
 
   // Compute aggregates on the full filtered result set (pre-pagination)
+  const shortlistedApplicantIds = new Set<string>()
+  const allApplicantIds = new Set<string>()
+
   const aggregates: SubmissionAggregates = rows.reduce(
     (acc, row) => {
       if (row.status === 'pending') acc.pending += 1
-      if (row.status === 'shortlisted') acc.shortlisted += 1
+      if (row.status === 'shortlisted') {
+        acc.shortlisted += 1
+        if (row.applicant_id) shortlistedApplicantIds.add(row.applicant_id)
+      }
       if (row.status === 'rejected') acc.rejected += 1
+      if (row.applicant_id) allApplicantIds.add(row.applicant_id)
       if (typeof row.ai_score === 'number') {
         acc.averageScore += row.ai_score
       }
       return acc
     },
-    { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0 }
+    { pending: 0, shortlisted: 0, rejected: 0, averageScore: 0, uniqueShortlistedApplicants: 0, uniqueApplicants: 0 }
   )
+  aggregates.uniqueShortlistedApplicants = shortlistedApplicantIds.size
+  aggregates.uniqueApplicants = allApplicantIds.size
   const scoreDenominator = rows.filter(r => typeof r.ai_score === 'number').length
   aggregates.averageScore = scoreDenominator > 0 ? Math.round(aggregates.averageScore / scoreDenominator) : 0
 
@@ -314,7 +331,10 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{shortlistedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Selected candidates</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              shortlisted submissions from {aggregates.uniqueShortlistedApplicants}{' '}
+              {aggregates.uniqueShortlistedApplicants === 1 ? 'applicant' : 'applicants'}
+            </p>
             <div className="mt-2 h-1 bg-muted rounded-full">
               <div 
                 className="h-1 bg-green-500 rounded-full transition-all duration-500" 
