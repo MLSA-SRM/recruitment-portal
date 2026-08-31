@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Fragment, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 
 type SubmissionWithJoins = {
   id: number
+  applicant_id: string
   submission_url: string
   status: 'pending' | 'shortlisted' | 'rejected'
   ai_score: number | null
@@ -28,6 +29,16 @@ type SubmissionWithJoins = {
   } | null
 }
 
+type ApplicantGroup = {
+  key: string
+  name: string
+  raNumber: string
+  year: number | null
+  rows: SubmissionWithJoins[]
+  domains: string[]
+  subdomains: string[]
+}
+
 export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJoins[] }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -35,6 +46,36 @@ export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJ
   const [rowPending, setRowPending] = useState<number | null>(null)
 
   const allSelected = submissions.length > 0 && selected.size === submissions.length
+
+  // Group submissions by applicant, preserving the order the server sent them
+  // in (which is already sorted and paginated by applicant, so every person's
+  // submissions arrive contiguously and no group is split across pages).
+  const groups: ApplicantGroup[] = []
+  const groupIndex = new Map<string, ApplicantGroup>()
+
+  for (const row of submissions) {
+    const key = row.applicant_id ?? `submission-${row.id}`
+    let group = groupIndex.get(key)
+    if (!group) {
+      group = {
+        key,
+        name: row.profiles?.name || 'Unknown applicant',
+        raNumber: row.profiles?.ra_number || '—',
+        year: row.profiles?.year ?? null,
+        rows: [],
+        domains: [],
+        subdomains: [],
+      }
+      groupIndex.set(key, group)
+      groups.push(group)
+    }
+    group.rows.push(row)
+
+    const domain = row.tasks?.domain
+    if (domain && !group.domains.includes(domain)) group.domains.push(domain)
+    const subdomain = row.tasks?.subdomain
+    if (subdomain && !group.subdomains.includes(subdomain)) group.subdomains.push(subdomain)
+  }
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(submissions.map((s) => s.id)))
@@ -45,6 +86,20 @@ export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJ
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+  }
+
+  // Select or clear every submission belonging to one applicant at once.
+  function toggleGroup(group: ApplicantGroup) {
+    const ids = group.rows.map((r) => r.id)
+    const allInGroupSelected = ids.every((id) => selected.has(id))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) {
+        if (allInGroupSelected) next.delete(id)
+        else next.add(id)
+      }
       return next
     })
   }
@@ -117,7 +172,43 @@ export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJ
           </TableRow>
         </TableHeader>
         <TableBody>
-          {submissions.map((s) => (
+          {groups.map((group) => (
+            <Fragment key={group.key}>
+              {/* Applicant header — one per person, summarising everything they
+                  attempted. Their individual submissions follow underneath with
+                  all the usual per-row actions. */}
+              <TableRow className="bg-slate-100 hover:bg-slate-100 border-t-2 border-slate-300">
+                <TableCell>
+                  <Checkbox
+                    checked={group.rows.every((r) => selected.has(r.id))}
+                    onCheckedChange={() => toggleGroup(group)}
+                    aria-label={`Select all submissions by ${group.name}`}
+                  />
+                </TableCell>
+                <TableCell className="font-semibold text-gray-900">{group.name}</TableCell>
+                <TableCell className="text-muted-foreground">{group.raNumber}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {group.year ? `${group.year}${group.year === 1 ? 'st' : group.year === 2 ? 'nd' : group.year === 3 ? 'rd' : 'th'} Year` : '—'}
+                  </Badge>
+                </TableCell>
+                <TableCell colSpan={4}>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-medium text-gray-600">
+                      {group.rows.length} {group.rows.length === 1 ? 'submission' : 'submissions'} across
+                    </span>
+                    {group.domains.map((d) => (
+                      <Badge key={d} variant="secondary" className="text-xs">{d}</Badge>
+                    ))}
+                    {group.subdomains.map((sd) => (
+                      <Badge key={sd} variant="outline" className="text-xs bg-white">{sd}</Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell />
+              </TableRow>
+
+              {group.rows.map((s) => (
             <TableRow
               key={s.id}
               className={`${
@@ -126,10 +217,10 @@ export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJ
                 'hover:bg-muted/50'
               } transition-colors`}
             >
-              <TableCell>
+              <TableCell className="pl-6">
                 <Checkbox checked={selected.has(s.id)} onCheckedChange={() => toggleOne(s.id)} aria-label={`Select submission ${s.id}`} />
               </TableCell>
-              <TableCell className="font-medium">{s.profiles?.name || '—'}</TableCell>
+              <TableCell className="font-medium text-muted-foreground pl-6">↳</TableCell>
               <TableCell className="text-muted-foreground">{s.profiles?.ra_number || '—'}</TableCell>
               <TableCell>
                 <Badge variant="outline" className="text-xs">
@@ -256,6 +347,8 @@ export function SubmissionsTable({ submissions }: { submissions: SubmissionWithJ
                 </div>
               </TableCell>
             </TableRow>
+              ))}
+            </Fragment>
           ))}
         </TableBody>
       </Table>

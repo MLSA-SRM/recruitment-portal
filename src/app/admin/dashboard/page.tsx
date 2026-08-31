@@ -25,6 +25,7 @@ type Filters = { q?: string; year?: string; domain?: string; subdomain?: string;
 
 type SubmissionWithJoins = {
   id: number
+  applicant_id: string
   submission_url: string
   status: 'pending' | 'shortlisted' | 'rejected'
   ai_score: number | null
@@ -66,13 +67,14 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
   let query = supabase
     .from('submissions')
     .select(`
-      id, 
-      submission_url, 
-      status, 
-      ai_score, 
-      ai_recommendation, 
-      created_at, 
-      profiles!submissions_applicant_id_fkey(name, ra_number, year), 
+      id,
+      applicant_id,
+      submission_url,
+      status,
+      ai_score,
+      ai_recommendation,
+      created_at,
+      profiles!submissions_applicant_id_fkey(name, ra_number, year),
       tasks!submissions_task_id_fkey(domain, subdomain)
     `, { count: 'exact' })
 
@@ -143,12 +145,38 @@ async function getSubmissions(filters: Filters): Promise<{ submissions: Submissi
   const scoreDenominator = rows.filter(r => typeof r.ai_score === 'number').length
   aggregates.averageScore = scoreDenominator > 0 ? Math.round(aggregates.averageScore / scoreDenominator) : 0
 
-  // Now apply pagination to the filtered results
-  const total = rows.length
+  // Paginate by APPLICANT, not by submission row.
+  //
+  // The table groups a person's submissions together, so paging by row would
+  // split someone across a page boundary — half their attempts on page 1, the
+  // rest on page 2 — which defeats the point of grouping. Grouping first and
+  // then slicing whole applicants keeps every person intact on one page.
+  //
+  // `limit` therefore now means "applicants per page" rather than "rows per
+  // page", and `total` is the number of applicants matching the filters. The
+  // stat cards above the table are driven by their own separate queries, so
+  // they are unaffected by this change.
+  const groupOrder: string[] = []
+  const rowsByApplicant = new Map<string, SubmissionWithJoins[]>()
+
+  for (const row of rows) {
+    // Fall back to the row id so a submission with a missing applicant_id
+    // still renders as its own group instead of silently collapsing others.
+    const key = row.applicant_id ?? `submission-${row.id}`
+    if (!rowsByApplicant.has(key)) {
+      rowsByApplicant.set(key, [])
+      groupOrder.push(key)
+    }
+    rowsByApplicant.get(key)!.push(row)
+  }
+
+  const total = groupOrder.length
   const totalPages = Math.ceil(total / limit)
-  const validatedPage = Math.min(page, Math.max(1, totalPages)) // Ensure page doesn't exceed total pages
+  const validatedPage = Math.min(page, Math.max(1, totalPages))
   const offset = (validatedPage - 1) * limit
-  const paginatedRows = rows.slice(offset, offset + limit)
+  const paginatedRows = groupOrder
+    .slice(offset, offset + limit)
+    .flatMap((key) => rowsByApplicant.get(key) ?? [])
 
   const result = { submissions: paginatedRows, total, page: validatedPage, totalPages, aggregates }
   
