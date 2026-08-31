@@ -239,7 +239,20 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_list_users: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          email: string | null
+          is_onboarding_complete: boolean
+          has_profile: boolean
+          auth_created_at: string | null
+        }[]
+      }
+      admin_reset_registration: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

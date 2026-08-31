@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PaginationControls } from '@/components/pagination-controls'
-import { Users } from 'lucide-react'
+import { Users, AlertTriangle } from 'lucide-react'
 import { ALL_DOMAINS } from '@/lib/constants'
+import { ResetRegistrationButton } from './reset-registration-button'
 
 type Filters = { q?: string; year?: string; department?: string; domain?: string; page?: string; limit?: string }
 
@@ -27,6 +28,16 @@ type ProfileRow = {
   subdomains: string[] | null
   is_admin: boolean
   created_at: string | null
+  email?: string | null
+  is_onboarding_complete?: boolean
+}
+
+type AdminListedUser = {
+  id: string
+  email: string | null
+  is_onboarding_complete: boolean
+  has_profile: boolean
+  auth_created_at: string | null
 }
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<Filters> }) {
@@ -42,15 +53,35 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     .select('id, name, ra_number, phone_number, department, branch, year, domain, subdomain, domains, subdomains, is_admin, created_at')
     .order('created_at', { ascending: false })
 
+  const { data: listedUsers } = await supabase.rpc('admin_list_users')
+  const byId = new Map<string, AdminListedUser>(
+    ((listedUsers || []) as AdminListedUser[]).map((u) => [u.id, u])
+  )
+
   let rows = (error ? [] : (data || [])) as ProfileRow[]
+  rows = rows.map((r) => ({
+    ...r,
+    email: byId.get(r.id)?.email ?? null,
+    is_onboarding_complete: byId.get(r.id)?.is_onboarding_complete ?? false,
+  }))
+
+  // People who signed up but never completed their profile at all — invisible
+  // in the profiles-based list above since they have no profile row, but
+  // exactly the group most likely to be "stuck": no self-service way to see
+  // or fix this previously existed anywhere in the admin panel.
+  const incompleteSignups = ((listedUsers || []) as AdminListedUser[])
+    .filter((u) => !u.has_profile)
+    .sort((a, b) => (b.auth_created_at || '').localeCompare(a.auth_created_at || ''))
 
   function domainsOf(r: ProfileRow): string[] {
     return r.domains && r.domains.length > 0 ? r.domains : (r.domain ? [r.domain] : [])
   }
 
+  let filteredIncomplete = incompleteSignups
   if (resolvedSearchParams.q) {
     const q = resolvedSearchParams.q.toLowerCase()
-    rows = rows.filter((r) => `${r.name ?? ''} ${r.ra_number ?? ''}`.toLowerCase().includes(q))
+    rows = rows.filter((r) => `${r.name ?? ''} ${r.ra_number ?? ''} ${r.email ?? ''}`.toLowerCase().includes(q))
+    filteredIncomplete = filteredIncomplete.filter((u) => (u.email ?? '').toLowerCase().includes(q))
   }
   if (resolvedSearchParams.year) {
     rows = rows.filter((r) => String(r.year ?? '') === resolvedSearchParams.year)
@@ -152,19 +183,22 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-semibold">Name</TableHead>
+                  <TableHead className="font-semibold">Email</TableHead>
                   <TableHead className="font-semibold">RA Number</TableHead>
                   <TableHead className="font-semibold">Year</TableHead>
                   <TableHead className="font-semibold">Department</TableHead>
                   <TableHead className="font-semibold">Branch</TableHead>
                   <TableHead className="font-semibold">Phone</TableHead>
                   <TableHead className="font-semibold">Domains</TableHead>
+                  <TableHead className="font-semibold">Onboarding</TableHead>
                   <TableHead className="font-semibold">Joined</TableHead>
+                  <TableHead className="font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedRows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                       No users match these filters.
                     </TableCell>
                   </TableRow>
@@ -175,6 +209,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                       {r.name || '—'}
                       {r.is_admin && <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">Admin</Badge>}
                     </TableCell>
+                    <TableCell className="text-muted-foreground">{r.email || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{r.ra_number || '—'}</TableCell>
                     <TableCell>
                       {r.year ? (
@@ -195,8 +230,20 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                         </div>
                       ) : '—'}
                     </TableCell>
+                    <TableCell>
+                      {r.is_onboarding_complete ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200 text-xs">Complete</Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 text-xs">Incomplete</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {!r.is_admin && r.email && (
+                        <ResetRegistrationButton userId={r.id} email={r.email} name={r.name} />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -204,6 +251,42 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             </Table>
           </CardContent>
         </Card>
+
+        {filteredIncomplete.length > 0 && (
+          <Card>
+            <CardContent className="px-6 py-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Signed up but never completed a profile ({filteredIncomplete.length})
+                </h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                These people have an account (they can sign in) but no saved profile — invisible in the table
+                above since it lists profiles, not accounts. Usually means their setup form submission failed
+                (commonly an RA-number conflict) and they never noticed the error.
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-semibold">Email</TableHead>
+                    <TableHead className="font-semibold">Signed up</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredIncomplete.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="text-muted-foreground">{u.email || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {u.auth_created_at ? new Date(u.auth_created_at).toLocaleString() : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <PaginationControls
           page={validatedPage}

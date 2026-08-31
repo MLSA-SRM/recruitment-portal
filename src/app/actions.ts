@@ -1522,4 +1522,42 @@ export async function deleteSubmission(submissionId: number) {
   return { ok: true }
 }
 
+// Clears a stuck or mistaken registration so the person lands back on
+// /profile/setup and can redo it. Deletes only their profiles row and
+// resets the onboarding flag — their login (auth.users: email, password)
+// is never touched, so they don't need to sign up again, only re-fill the
+// profile form. Enforced admin-only both here and inside the underlying
+// Postgres function (admin_reset_registration), which raises if the
+// caller isn't an admin.
+export async function adminResetUserRegistration(targetUserId: string) {
+  const supabase = await createSupabaseServer()
+  const adminId = await getCurrentUserId()
+  if (!adminId) throw new Error('Not authenticated')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', adminId)
+    .single()
+
+  if (!profile?.is_admin) {
+    throw new Error('Unauthorized: Admin access required')
+  }
+
+  const { error } = await supabase.rpc('admin_reset_registration', {
+    target_user_id: targetUserId,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  await logAdminActivity('reset_registration', 'profile', targetUserId, {})
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/users')
+
+  return { ok: true }
+}
+
 
